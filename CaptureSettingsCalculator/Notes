@@ -1,0 +1,20 @@
+To Capture images we need to know the optimal settings for the following:
+    -Exposure length
+    -ISO value
+    -Focus length (if using camera lens, telescope has fixed focal length
+
+ISO Value: Trade off between SNR and dynamic range. High iso means low noise but also low range
+Chart on this site: https://photonstophotos.net/Charts/RN_e.htm shows these two parameters
+Find the best value where chart starts to flatten. ie. there is no more benefit in terms of noise but range will keep reducing if we go higher.
+Suggest picking a single value and not worrying about it.
+Note that for planets we dont need high iso.
+
+Focus length: Don't know, don't know how much it matters. I think 'faster' is better but need to do more research.
+
+-Exposure length: Too long will make star trails. (Also too long with too much ISO will saturate image?)
+Optimal value to avoid star trails can be found using NPF formula found on this website: https://web.archive.org/web/20200220123345/https://www.sahavre.fr/tutoriels/astrophoto/34-regle-npf-temps-de-pose-pour-eviter-le-file-d-etoiles
+To use this formula we need to know:
+    -Pixel size of camera (can be looked up from datasheets)
+    -focal length of lens (If using telescope it is fixed, using camera lens we have to choose. I think gphoto2 can read it from the camera)
+    -Aperture setting of lens (again, I think gphoto can read from the camera, don't know what should be used)
+    -Approximate declination of target (This will depend on target, location of telescope (Maybe?) and time (maybe?). At first this can be calculated ahead of each shoot (only needs to be approximate) but can be automated. I am thinking a small program that has the messier catalogue saved to it)
