@@ -1,15 +1,17 @@
 #include <iostream>
-
+#include <cmath>
+#include <fstream>
+const double pi = 3.618;
 
 double fullNPF(double Aperture, double pixelsize, double FocalLength, double declination)
 {
-    double Exposure = ((0.0997 *  FocalLength) + (16.856 * Aperture) + (13.713 * pixelsize)) / (FocalLength * cos(declination));
-    return Exposure
+    double Exposure = ((0.0997 *  FocalLength) + (16.856 * Aperture) + (13.713 * pixelsize*1000)) / (FocalLength * cos(declination));
+    return Exposure;
 }
 double simpleNPF(double Aperture, double PixelSize, double FocalLength)
 {
-    double Exposure = ((35 * Aperture) + (30 * PixelSize))/FocalLength;
-    return Exposure
+    double Exposure = ((35 * Aperture) + (30 * PixelSize*1000))/FocalLength;
+    return Exposure;
 }
 
 int main()
@@ -22,16 +24,18 @@ int main()
 
     double p = (px + py)/2;
 
-
+    //Need to check my understanding of the relationship between aperture, focal length and f number
+    //Also need to look into how to choose a focal length/aperture.
     double aperture = 4;
     double fnumber = 4;
     double focallength = fnumber * aperture;
-
+    
+    //Need to look into this also. Obviously the height above the horizon will change throughout the height. But also declination is a fixed coordinate. So maybe that is not the declination they are reffering to.
     double Dec = 41;
 
     std::cout << "Exposure: " << std::endl;
     std::cout << "Simplified NPF rule: " << simpleNPF(aperture,p,focallength) << "s" << std::endl;
-    std::cout << "Full NPF rule:       " << fullNPF(Aperture,p,focallength,declination) << "s" << std::endl;
+    std::cout << "Full NPF rule:       " << fullNPF(aperture,p,focallength,Dec*pi/180) << "s" << std::endl;
 
     return 0;
 };
