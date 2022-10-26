@@ -14,6 +14,26 @@ double simpleNPF(double Aperture, double PixelSize, double FocalLength)
     return Exposure;
 }
 
+
+double * calculateAltAz(double lattitude, double longitude, double RightAccension, double Declination, double Time)
+{
+    static double AltAz[2];   //Cannot return an array in c++. Instead declare a static array and return a pointer to it
+
+
+    double MeanSiderealTime
+    double LocalMeanSideralTime = MeanSiderealTime + longitude;
+    double HourAngle = LocalMeanSideralTime - RightAccension;
+    double sinalt = (sin(Declination)*sin(lattitude)) + (cos(Declination)*cos(Lattitude)*cos(HourAngle));
+
+    double cosaz = (sin(Declination)-(sin(AltAz[0])*sin(lattitude)))/cos(AltAz[0])*cos(lattitude));
+
+
+
+    AltAz[0] = 5.0;
+    AltAz[1] = 4.0;
+    return AltAz;
+}
+
 int main()
 {
     //Settings for Nikon D3500
@@ -36,6 +56,12 @@ int main()
     std::cout << "Exposure: " << std::endl;
     std::cout << "Simplified NPF rule: " << simpleNPF(aperture,p,focallength) << "s" << std::endl;
     std::cout << "Full NPF rule:       " << fullNPF(aperture,p,focallength,Dec*pi/180) << "s" << std::endl;
+    
+
+    double *testAltAz = calculateAltAz(1,1,1,1,1);
+    std::cout << "testAltAz[0]: " << *testAltAz << std::endl;
+    std::cout << "testAltAz[1]: " << *(testAltAz+1) << std::endl;
+
 
     return 0;
 };
