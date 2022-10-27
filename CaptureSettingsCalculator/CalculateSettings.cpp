@@ -15,22 +15,28 @@ double simpleNPF(double Aperture, double PixelSize, double FocalLength)
 }
 
 
-double * calculateAltAz(double lattitude, double longitude, double RightAccension, double Declination, double Time)
+double * calculateAltAz(double lattitude, double longitude, double RightAccension, double Declination, double Ndays, double Time)
 {
+    
     static double AltAz[2];   //Cannot return an array in c++. Instead declare a static array and return a pointer to it
 
-
-    double MeanSiderealTime
+   
+    double MeanSiderealTime = 100.46 + (0.985647 * Ndays) + (longitude*pi/180) + (15 * Time);
     double LocalMeanSideralTime = MeanSiderealTime + longitude;
     double HourAngle = LocalMeanSideralTime - RightAccension;
-    double sinalt = (sin(Declination)*sin(lattitude)) + (cos(Declination)*cos(Lattitude)*cos(HourAngle));
 
-    double cosaz = (sin(Declination)-(sin(AltAz[0])*sin(lattitude)))/cos(AltAz[0])*cos(lattitude));
+    double sinalt = (sin(Declination)*sin(lattitude)) + (cos(Declination)*cos(lattitude)*cos(HourAngle));
+    AltAz[0] = asin(sinalt);
+    double cosaz = (sin(Declination)-(sin(AltAz[0])*sin(lattitude)))/(cos(AltAz[0])*cos(lattitude));
+    if (sin(HourAngle) < 0)
+    {
+        AltAz[1] = acos(cosaz);
+    }
+    else
+    {
+        AltAz[1] = (2 * pi) - acos(cosaz);
+    }
 
-
-
-    AltAz[0] = 5.0;
-    AltAz[1] = 4.0;
     return AltAz;
 }
 
@@ -58,7 +64,7 @@ int main()
     std::cout << "Full NPF rule:       " << fullNPF(aperture,p,focallength,Dec*pi/180) << "s" << std::endl;
     
 
-    double *testAltAz = calculateAltAz(1,1,1,1,1);
+    double *testAltAz = calculateAltAz(51,-2.8,0,41,7970,23.5);
     std::cout << "testAltAz[0]: " << *testAltAz << std::endl;
     std::cout << "testAltAz[1]: " << *(testAltAz+1) << std::endl;
 
