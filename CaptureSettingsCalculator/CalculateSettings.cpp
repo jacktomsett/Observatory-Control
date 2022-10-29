@@ -2,7 +2,7 @@
 #include <fstream>
 #include <ctime>
 #include <cmath>
-const double pi = 3.618;
+const double pi = 3.14159265358979323846;
 const int SecondsInDay = 86400;
 //=====================================================================//
 //                           Functions                                 //
@@ -31,6 +31,9 @@ double * calculateAltAz(double lattitude, double longitude, double RightAccensio
     std::cout << "Declination:        " << Declination << std::endl;
     std::cout << "Days since J2000:   " << Ndays << std::endl;
     std::cout << "Time:               " << Time << " hrs" << std::endl;
+    double RightAccensionDeg = RightAccension * 15;    
+
+
     double LocalMeanSiderealTime = (100.46 + (0.985647 * Ndays) + longitude + (15 * Time));
 
     if (LocalMeanSiderealTime > 360.0)
@@ -49,13 +52,14 @@ double * calculateAltAz(double lattitude, double longitude, double RightAccensio
     }
 
     std::cout << "LocalMeanSideralTime:" << LocalMeanSiderealTime << std::endl;
-    double HourAngle = LocalMeanSiderealTime - RightAccension;
+    double HourAngle = LocalMeanSiderealTime - RightAccensionDeg;
     if(HourAngle < 0)
     {
         HourAngle = HourAngle + 360;
     }
     std::cout << "HourAngle:           " << HourAngle << std::endl;
     double sinalt = (sin(Declination*pi/180.0)*sin(lattitude*pi/180.0)) + (cos(Declination*pi/180.0)*cos(lattitude*pi/180.0)*cos(HourAngle*pi/180.0));
+    std::cout << "sinalt = " << sin(Declination*(pi/180.0)) << " * " << sin(lattitude*(pi/180.0)) << " + " << cos(Declination*(pi/180.0)) << " * " << cos(lattitude*(pi/180.0)) << " * " << cos(HourAngle*(pi/180.0)) << std::endl;
     std::cout << "sinalt:             " << sinalt << std::endl;
     AltAz[0] = asin(sinalt)*180.0/pi;
     double cosaz = (sin(Declination*pi/180.0)-(sin(AltAz[0]*pi/180.0)*sin(lattitude*pi/180.0)))/(cos(AltAz[0]*pi/180.0)*cos(lattitude*pi/180.0));
@@ -79,11 +83,11 @@ double * calculateAltAz(double lattitude, double longitude, double RightAccensio
 //============================================================================//
 int main()
 {
-    double ObserverLatt = 1;
-    double ObserverLong = 1;
+    double ObserverLatt = 52.5;
+    double ObserverLong = -1.9166667;
 
-    double TargetRA = 1;
-    double TargetDec = 1;
+    double TargetRA = 16.695;
+    double TargetDec = 36.466667;
 
     //import celestial epoch
     time_t rawtime;
@@ -119,11 +123,11 @@ int main()
     //Enter date to calculate position for
     struct tm * ObservationTime;
     int d_sec = 0;
-    int d_min = 30;
+    int d_min = 10;
     int d_hour = 23;
-    int d_day = 30;
-    int d_month = 10;    
-    int d_year = 2022;
+    int d_day = 10;
+    int d_month = 8;    
+    int d_year = 1998;
 
     ObservationTime = gmtime( &rawtime );
     ObservationTime->tm_year = d_year - 1900;
@@ -146,7 +150,8 @@ int main()
     std::cout << 1 + ObservationTime->tm_sec << std::endl<<std::endl;
 
     double NdaysSinceEpoch = difftime(Observation_t,epoch_t)/SecondsInDay;
-    double ObsTimeDecimalHours = ObservationTime->tm_hour + ((ObservationTime->tm_min)/60.0);
+    //double ObsTimeDecimalHours = ObservationTime->tm_hour + ((ObservationTime->tm_min)/60.0);
+    double ObsTimeDecimalHours = 23.166667;
     std::cout << "Number of days since epoch: " << NdaysSinceEpoch << " days" << std::endl;
     std::cout << "Decimal Hours:              " << ObsTimeDecimalHours << std::endl;
 
@@ -171,7 +176,7 @@ int main()
     std::cout << "Full NPF rule:       " << fullNPF(aperture,p,focallength,Dec*pi/180) << "s" << std::endl<<std::endl;
     
 
-    double *testAltAz = calculateAltAz(ObserverLatt,ObserverLong,TargetRA,TargetDec,NdaysSinceEpoch,ObsTimeDecimalHours);
+    double *testAltAz = calculateAltAz(52.5,-1.9166667,16.695,36.466667,-508.53472,23.166667);
     std::cout << "Altitude: " << *testAltAz << std::endl;
     std::cout << "Azimuth : " << *(testAltAz+1) << std::endl;
 
