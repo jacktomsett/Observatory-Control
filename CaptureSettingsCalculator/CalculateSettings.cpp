@@ -11,7 +11,17 @@ const int SecondsInDay = 86400;
 
 
 
-
+std::time_t createDateTime(int year, int month, int day, int hour, int minute, int second)
+{
+    std::tm temp = tm();
+    temp.tm_year = year - 1900;
+    temp.tm_mon = month -1;
+    temp.tm_mday = day;
+    temp.tm_hour = hour;
+    temp.tm_min = minute;
+    temp.tm_sec = second;
+    return mktime(&temp);
+}
 
 double fullNPF(double Aperture, double pixelsize, double FocalLength, double declination)
 {
@@ -25,21 +35,26 @@ double simpleNPF(double Aperture, double PixelSize, double FocalLength)
 }
 
 
-double * calculateAltAz(double lattitude, double longitude, double RightAccension, double Declination, double Ndays,double Time)
-{
-    
+double * calculateAltAz(double lattitude, double longitude, double RightAccension, double Declination, std::time_t ObservationDateTime)
+{    
     static double AltAz[2];   //Cannot return an array in c++. Instead declare a static array and return a pointer to it
 
-//    std::cout << "Lattitude:          " << lattitude << std::endl;
-//    std::cout << "Longitude:          " << longitude << std::endl;
-//    std::cout << "Right Accension:    " << RightAccension << std::endl;
-//    std::cout << "Declination:        " << Declination << std::endl;
-//    std::cout << "Days since J2000:   " << Ndays << std::endl;
-//    std::cout << "Time:               " << Time << " hrs" << std::endl;
+    //Generate a time_t object for celestial epoch:
+    std::time_t epoch = createDateTime(2000,1,1,0,0,0);
+    //Calculate number of days between then an observation date-time:
+    double Ndays = difftime(ObservationDateTime,epoch)/86400;
+    //extract decimal time from observation date time
+    struct tm * Obs;
+    Obs = gmtime(&ObservationDateTime);
+
+
+    double TimeOfDay = Obs->tm_hour + (Obs->tm_min / 60.0) ;
+    std::cout << "Time of day: " << TimeOfDay << std::endl;
+
     double RightAccensionDeg = RightAccension * 15;    
 
 
-    double LocalMeanSiderealTime = (100.46 + (0.985647 * Ndays) + longitude + (15 * Time));
+    double LocalMeanSiderealTime = (100.46 + (0.985647 * Ndays) + longitude + (15 * TimeOfDay));
 
     if (LocalMeanSiderealTime > 360.0)
     {
@@ -91,51 +106,39 @@ int main()
 
     //Observer and target details:
 
-    double ObserverLattDeg = 42;
-    double ObserverLattMins = 21;
-    double ObserverLongDeg = -71;
-    double ObserverLongMins = 4;
-
-    double TargetRAHours = 3;
-    double TargetRAMins = 47;
-    double TargetDecDeg = 24;
-    double TargetDecMins = 7;
-
-    std::cout << "Observer Lattitude: " << ObserverLattDeg << " degrees, " << ObserverLattMins << " minutes." << std::endl;
-    std::cout << "Observer Longitude: " << ObserverLongDeg << " degrees, " << ObserverLongMins << " minutes." << std::endl;
-    std::cout << "Target Right Ascension: " << TargetRAHours << " hours, " << TargetRAMins <<  " minutes." << std::endl;
-    std::cout << "Target Declination: " << TargetDecDeg << " degrees, " << TargetDecMins << " minutes." << std::endl;
-
-
-    //conver values to decimal equivilents:
+    double ObserverLattDeg = 52;
+    double ObserverLattMins = 30;
+    double ObserverLongDeg = -2;
+    double ObserverLongMins = 45;
     double ObserverLongDecimalDegrees = ObserverLongDeg + (ObserverLongMins / 60.0);
     double ObserverLattDecimalDegrees = ObserverLattDeg + (ObserverLattMins / 60.0);
-    double TargetRADecimalHours = TargetRAHours + (TargetRAMins / 60.0);
-    double TargetDecDecimalDegrees = TargetDecDeg + (TargetDecMins / 60.0);
+    std::cout << "Observer Lattitude: " << ObserverLattDeg << " degrees, " << ObserverLattMins << " minutes." << std::endl;
+    std::cout << "Observer Longitude: " << ObserverLongDeg << " degrees, " << ObserverLongMins << " minutes." << std::endl;
+
+
+    CelestialObject Target = CelestialObject("Messier",45);
+    std::cout << "Selected target: " << Target.getName() << "." << std::endl;
+    std::cout << "RA: " << Target.getRA() << "h " << std::fmod(Target.getRA(),1.0)*60.0 << "m, Dec: " << Target.getDec() << "° " << std::fmod(Target.getDec(),1.0)*60.0 <<  " m." << std::endl;
 
 
     //Enter observation date and time:
-    int ObservationYear = 2004;
-    int ObservationMonth = 4;
-    int ObservationDay = 6;
-    int ObservationHour = 21;
-    int ObservationMin = 0;
+    int ObservationYear = 2022;
+    int ObservationMonth = 11;
+    int ObservationDay = 2;
+    int ObservationHour = 3;
+    int ObservationMin = 15;
     int ObservationSec = 0;
 
     //import data into a ctime object:
-    std::tm tm{};
-    tm.tm_year = ObservationYear - 1900;
-    tm.tm_mon = ObservationMonth - 1;
-    tm.tm_mday = ObservationDay;
-    tm.tm_hour = ObservationHour;
-    tm.tm_min = ObservationMin;
-    //ObservationDateTime.tm_isdst = 0;
-    std::time_t ObservationDateTime_timet = std::mktime(&tm);
-    //std::tm ObservationDateTime_tm = std::gmtime(&ObservationDateTime_timet)
-    //std::cout << "Observation time: " << std::put_time(&ObservationDateTime_tm, "%c %Z") << '\n';
-
-
-
+    std::time_t ObservationTimePoint = createDateTime(ObservationYear,ObservationMonth,ObservationDay,ObservationHour,ObservationMin,ObservationSec);
+    std::cout << "Observation time:" << std::endl;
+    std::cout << ctime(&ObservationTimePoint) << std::endl;
+    
+    
+    //Calculate position in sky
+    double *testAltAz = calculateAltAz(ObserverLattDecimalDegrees,ObserverLongDecimalDegrees,Target.getRA(),Target.getDec(),ObservationTimePoint);
+    std::cout << "Altitude: " << *testAltAz << std::endl;
+    std::cout << "Azimuth : " << *(testAltAz+1) << std::endl;
 
     //Settings for Nikon D3500
     //Sensor is 23.5 x 15.6 mm
@@ -143,27 +146,20 @@ int main()
     double px = 23.5/6000;
     double py = 15.6/4000;
     double p = (px + py)/2;
+    std::cout << "Pixel pitch: " << p << " mm" << std::endl;
 
     //Need to check my understanding of the relationship between aperture, focal length and f number
     //Also need to look into how to choose a focal length/aperture.
     double aperture = 4;
+    std::cout << "Aperture: " << aperture << std::endl;
     double fnumber = 4;
     double focallength = fnumber * aperture;
-    
-    //Need to look into this also. Obviously the height above the horizon will change throughout the height. But also declination is a fixed coordinate. So maybe that is not the declination they are reffering to.
-    double Dec = 41;
+    std::cout << "Focal length: " << focallength << std::endl;
+
 
     std::cout << "Exposure: " << std::endl;
     std::cout << "Simplified NPF rule: " << simpleNPF(aperture,p,focallength) << "s" << std::endl;
-    std::cout << "Full NPF rule:       " << fullNPF(aperture,p,focallength,Dec*pi/180) << "s" << std::endl<<std::endl;
-    
-
-//    double *testAltAz = calculateAltAz(ObserverLattDecimalDegrees,ObserverLongDecimalDegrees,TargetRADecimalHours,TargetDecDecimalDegrees,NdaysSinceEpoch,ObsTimeDecimalHours);
-//    std::cout << "Altitude: " << *testAltAz << std::endl;
-//    std::cout << "Azimuth : " << *(testAltAz+1) << std::endl;
-
-    //Parse catalog for for desired object:
-    CelestialObject Target = CelestialObject("Messier",31);
+    std::cout << "Full NPF rule:       " << fullNPF(aperture,p,focallength,Target.getDec()*pi/180) << "s" << std::endl<<std::endl;
 
 
 
