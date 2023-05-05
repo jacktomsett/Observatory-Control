@@ -106,17 +106,17 @@ int main()
 
     //Observer and target details:
 
-    double ObserverLattDeg = 52;
-    double ObserverLattMins = 30;
+    double ObserverLattDeg = 53;
+    double ObserverLattMins = 25;
     double ObserverLongDeg = -2;
-    double ObserverLongMins = 45;
+    double ObserverLongMins = 50;
     double ObserverLongDecimalDegrees = ObserverLongDeg + (ObserverLongMins / 60.0);
     double ObserverLattDecimalDegrees = ObserverLattDeg + (ObserverLattMins / 60.0);
     std::cout << "Observer Lattitude: " << ObserverLattDeg << " degrees, " << ObserverLattMins << " minutes." << std::endl;
     std::cout << "Observer Longitude: " << ObserverLongDeg << " degrees, " << ObserverLongMins << " minutes." << std::endl;
 
 
-    CelestialObject Target = CelestialObject("Messier",45);
+    CelestialObject Target = CelestialObject("Messier",31);
     std::cout << "Selected target: " << Target.getName() << "." << std::endl;
     std::cout << "RA: " << Target.getRA() << "h " << std::fmod(Target.getRA(),1.0)*60.0 << "m, Dec: " << Target.getDec() << "° " << std::fmod(Target.getDec(),1.0)*60.0 <<  " m." << std::endl;
 
@@ -124,9 +124,9 @@ int main()
     //Enter observation date and time:
     int ObservationYear = 2022;
     int ObservationMonth = 11;
-    int ObservationDay = 2;
-    int ObservationHour = 3;
-    int ObservationMin = 15;
+    int ObservationDay = 6;
+    int ObservationHour = 20;
+    int ObservationMin = 30;
     int ObservationSec = 0;
 
     //import data into a ctime object:

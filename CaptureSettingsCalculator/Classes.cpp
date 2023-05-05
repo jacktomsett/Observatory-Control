@@ -1,3 +1,6 @@
+#ifndef _CLASSES_
+#define _CLASSES_
+
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -22,10 +25,13 @@ class CelestialObject
         CelestialObject(std::string,int);
         CelestialObject(std::string);
         double getRA();
-        double getdec();
+        double getDec();
         int getNumber();
         std::string getName();
         std::string getType();
+        double getMagnitude();
+        std::string getConstellation();
+        double getDistance();
 };
 
 CelestialObject::CelestialObject(std::string catalog, int number)
@@ -73,9 +79,31 @@ CelestialObject::CelestialObject(std::string catalog, int number)
         getline(linestream,junkstring,',');
         getline(linestream,DISTstring,',');
 
-        std::cout << "Selected target is " <<  Name << ", a " << Type << " in the constellation " << Constellation << ". It has a Right accension of " << RAstring << " and a declination of " << Decstring << ". " << std::endl;
-
         Magnitude = stod(MAGstring);
+        //Distance = stod(DISTstring);
+
+        std::stringstream RAstream(RAstring);
+        std::string RAhourstring;
+        std::string RAminstring;
+        getline(RAstream,RAhourstring,' ');
+        getline(RAstream,RAminstring,' ');
+        //remove the units from the end of the string
+        RAhourstring = RAhourstring.substr(0,RAhourstring.size()-1);
+        RAminstring = RAminstring.substr(0,RAminstring.size()-1);
+
+        std::stringstream Decstream(Decstring);
+        std::string DecDegstring;
+        std::string Decminstring;
+        char delim = '°';
+        getline(Decstream,DecDegstring,delim);
+        getline(Decstream,Decminstring,delim);
+        //remove the units from the end of the string
+        DecDegstring = DecDegstring.substr(0,DecDegstring.size()-1);
+        Decminstring = Decminstring.substr(0,Decminstring.size()-1);
+
+        //convert to decimal
+        RightAscension = stod(RAhourstring) + (stod(RAminstring)/60.0);
+        Declination = stod(DecDegstring) + (stod(Decminstring)/60.0);
 
         catalogfile.close();
     }
@@ -85,3 +113,38 @@ CelestialObject::CelestialObject(std::string catalog, int number)
     }
 
 }
+
+double CelestialObject::getRA()
+{
+    return RightAscension;
+}
+double CelestialObject::getDec()
+{
+    return Declination;
+}
+int CelestialObject::getNumber()
+{
+    return CatalogNumber;
+}
+std::string CelestialObject::getName()
+{
+    return Name;
+}
+std::string CelestialObject::getType()
+{
+    return Type;
+}
+double CelestialObject::getMagnitude()
+{
+    return Magnitude;
+}
+std::string CelestialObject::getConstellation()
+{
+    return Constellation;
+}
+double CelestialObject::getDistance()
+{
+    return Distance;
+}
+
+#endif // _CLASSES_
