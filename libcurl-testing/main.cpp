@@ -34,13 +34,6 @@ std::string getPosition(std::string Target, std::string Location)
     return astronomyapirequest(URLstring);
 }
 
-std::string generateLocationString(double Lattitude, double Longitude, double Elevation, std::string StartDate, std::string EndDate, std::string Time)
-{
-    return "longitude=" + to_string(Longitude) + "&lattitude=" + to_string(Lattitude) + "&elevation=" + to_string(Elevation) + "&from_date=" + to_string(StartDate) + "&to_date=" + to_string(EndDate) + "&time=" + to_string(Time);
-
-}
-
-
 int main()
 {
     //Define Targets
