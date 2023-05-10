@@ -2,7 +2,7 @@
 #include <string>
 #include <curl/curl.h>
 #include <astronomyapi_interface.cpp>
-
+#include <jsoncpp/json/json.h>
 
 int main()
 {
@@ -20,9 +20,17 @@ int main()
     Whiston.time = "21:30:00";
 
     std::string target = "jupiter";
-    std::string position_string = getBodyPosition(target,Whiston,generateAuthString(AppID,AppSecretKey));
+    std::string apiresponse = getBodyPosition(target,Whiston,generateAuthString(AppID,AppSecretKey));
+    std::cout << apiresponse << std::endl;
+    Json::Reader reader;
+    Json::Value Response;
+    reader.parse(apiresponse,Response);
+    Json::Value bodydata = Response["table"];
+    Json::Value bodydatadata = bodydata["rows"];
+    Json::Value namedata = bodydatadata["entry"];
+    std::cout << "id: " << namedata["id"] << std::endl;
+    std::cout << "name: " << namedata["name"] << std::endl;
 
-    std::cout << position_string << std::endl;
 
 
     return 0;

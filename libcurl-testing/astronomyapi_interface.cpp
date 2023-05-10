@@ -2,8 +2,9 @@
 #include <curl/curl.h>
 #include <Date.h>
 #include <Date.cpp>
+#include <iostream>
 
-//Define observer paramater structure
+//Define structures
 struct ObserverParams
 {
     float Longitude;
@@ -13,14 +14,22 @@ struct ObserverParams
     Date EndDate;
     std::string time;
 };
+struct BodyProperties
+{
+    std::string id;
+    std::string name;
+
+
+};
+
 
 std::string buildQueryString(ObserverParams observer)
 {
     //convert :'s in time string
     std::string timestring = observer.time;
-    timestring.replace(3,1,"%3A");
+    timestring.replace(2,1,"%3A");
     timestring.replace(7,1,"%3A");
-    return "?longitude=" + std::to_string(observer.Longitude) + "&lattitude=" + std::to_string(observer.Lattitude) + "&elevation=" + std::to_string(observer.Elevation) + "&from_date=" + observer.StartDate.print() + "&to_date=" + observer.EndDate.print() + "&time=" + timestring;
+    return "?longitude=" + std::to_string(observer.Longitude) + "&latitude=" + std::to_string(observer.Lattitude) + "&elevation=" + std::to_string(observer.Elevation) + "&from_date=" + observer.StartDate.print() + "&to_date=" + observer.EndDate.print() + "&time=" + timestring;
 
 }
 
@@ -37,7 +46,7 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *use
     return size * nmemb;
 }
 
-std::string astronomyapirequest(std::string URL, std::string AuthString)
+std::string astronomyapiGetrequest(std::string URL, std::string AuthString)
 {
     // Fetch data
     CURL * curl;
@@ -63,11 +72,19 @@ std::string astronomyapirequest(std::string URL, std::string AuthString)
 std::string getBodyPosition(std::string body, ObserverParams Observer, std::string AuthString)
 {
     std::string URL = "https://api.astronomyapi.com/api/v2/bodies/positions/" + body + buildQueryString(Observer);
-    return astronomyapirequest(URL,AuthString);
+    std::cout << URL << std::endl;
+    return astronomyapiGetrequest(URL,AuthString);
 }
 
 
 //Studio
+
+//=======INCOMPLETE
+std::string generateConstellationChart(std::string Constellation, ObserverParams Observer, std::string ChartStyle, std::string AuthString)
+{
+    std::string URL = "https://api.astronomyapi.com/api/v2/studio/star-chart";
+    return astronomyapiGetrequest(URL,AuthString);
+}
 
 
 //Search
