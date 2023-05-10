@@ -2,10 +2,9 @@
 #include <string>
 #include <curl/curl.h>
 
-static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp){
-    ((std::string*)userp)->append((char*)contents, size * nmemb);
-    return size * nmemb;
-}
+
+
+
 
 std::string astronomyapirequest(std::string URL)
 {
@@ -35,6 +34,11 @@ std::string getPosition(std::string Target, std::string Location)
     return astronomyapirequest(URLstring);
 }
 
+std::string generateLocationString(double Lattitude, double Longitude, double Elevation, std::string StartDate, std::string EndDate, std::string Time)
+{
+    return "longitude=" + to_string(Longitude) + "&lattitude=" + to_string(Lattitude) + "&elevation=" + to_string(Elevation) + "&from_date=" + to_string(StartDate) + "&to_date=" + to_string(EndDate) + "&time=" + to_string(Time);
+
+}
 
 
 int main()
