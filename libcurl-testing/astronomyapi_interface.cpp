@@ -11,8 +11,7 @@ struct ObserverParams
     float Longitude;
     float Lattitude;
     int Elevation;
-    Date StartDate;
-    Date EndDate;
+    Date ObservationDate;
     std::string time;
 };
 struct BodyProperties
@@ -34,7 +33,7 @@ std::string buildQueryString(ObserverParams observer)
     std::string timestring = observer.time;
     timestring.replace(2,1,"%3A");
     timestring.replace(7,1,"%3A");
-    return "?longitude=" + std::to_string(observer.Longitude) + "&latitude=" + std::to_string(observer.Lattitude) + "&elevation=" + std::to_string(observer.Elevation) + "&from_date=" + observer.StartDate.print() + "&to_date=" + observer.EndDate.print() + "&time=" + timestring;
+    return "?longitude=" + std::to_string(observer.Longitude) + "&latitude=" + std::to_string(observer.Lattitude) + "&elevation=" + std::to_string(observer.Elevation) + "&from_date=" + observer.ObservationDate.print() + "&to_date=" + observer.ObservationDate.print() + "&time=" + timestring;
 
 }
 
@@ -50,7 +49,6 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *use
     ((std::string*)userp)->append((char*)contents, size * nmemb);
     return size * nmemb;
 }
-
 std::string astronomyapiGetrequest(std::string URL, std::string AuthString)
 {
     // Fetch data

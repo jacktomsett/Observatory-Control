@@ -15,8 +15,7 @@ int main()
     Whiston.Lattitude = 53.412791;
     Whiston.Longitude = 2.801705;
     Whiston.Elevation = 1;
-    Whiston.StartDate = Date(2023,5,10);
-    Whiston.EndDate = Date(2023,05,10);
+    Whiston.ObservationDate = Date(2023,5,10);
     Whiston.time = "21:30:00";
 
     std::string target = "jupiter";
