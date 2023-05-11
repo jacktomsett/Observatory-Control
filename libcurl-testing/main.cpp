@@ -22,7 +22,7 @@ int main()
 
     std::string target = "jupiter";
     std::string apiresponse = getBodyPosition(target,Whiston,generateAuthString(AppID,AppSecretKey));
-    std::cout << apiresponse << std::endl;
+    //std::cout << apiresponse << std::endl;
     Json::Reader reader;
     Json::Value Response;
     reader.parse(apiresponse,Response);
@@ -33,14 +33,13 @@ int main()
     //std::cout << "name: " << namedata["name"] << std::endl;
     //std::cout << namedata << std:: endl;
 
-    std::vector<std::string> memberNames = Response["data"]["table"]["rows"][1]["entry"].getMemberNames();
-    int numberofrows = Response["data"]["table"]["rows"][1]["cells"].size();
-    std::string name = Response["data"]["table"]["rows"][1]["entry"]["name"].asString();
-    std::cout << "id:            " << Response["data"]["table"]["rows"][1]["cells"][1]["id"].asString() << std::endl;
-    std::cout << "name:          " << name << std::endl;
-    std::cout << "RA:            " << Response["data"]["table"]["rows"][1]["cells"][1]["position"]["equatorial"]["rightAscension"]["string"] << std::endl;
-    std::cout << "Dec:           " << Response["data"]["table"]["rows"][1]["cells"][1]["declination"]["equatorial"]["rightAscension"]["string"] << std::endl;
-    std::cout << "Constellation: " << Response["data"]["table"]["rows"][1]["cells"][1]["position"]["constellation"]["name"] << std::endl;
+    //std::vector<std::string> memberNames = Response["data"]["table"]["rows"][0].getMemberNames();
+    int numberofrows = Response["data"]["table"]["rows"][0].size();
+    std::cout << "id:            " << Response["data"]["table"]["rows"][0]["cells"][0]["id"] << std::endl;
+    std::cout << "name:          " << Response["data"]["table"]["rows"][0]["entry"]["name"] << std::endl;
+    std::cout << "RA:            " << Response["data"]["table"]["rows"][0]["cells"][0]["position"]["equatorial"]["rightAscension"]["string"] << std::endl;
+    std::cout << "Dec:           " << Response["data"]["table"]["rows"][0]["cells"][0]["position"]["equatorial"]["declination"]["string"] << std::endl;
+    std::cout << "Constellation: " << Response["data"]["table"]["rows"][0]["cells"][0]["position"]["constellation"]["name"] << std::endl;
 
 
     return 0;
