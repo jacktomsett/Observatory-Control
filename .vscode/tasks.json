@@ -7,17 +7,14 @@
             "command": "/usr/bin/g++",
             "args": [
                 "-g",
-                "${fileDirname}",
+                "${fileDirname}/${fileBasename}",
                 "-o",
                 "${fileDirname}/${fileBasenameNoExtension}",
                 "-lcurl",
                 "-ljsoncpp",
                 "-I",
-                "."
+                "${fileDirname}"
             ],
-            "options": {
-                "cwd": "/usr/bin"
-            },
             "problemMatcher": [
                 "$gcc"
             ],
