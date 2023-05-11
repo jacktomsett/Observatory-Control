@@ -2,7 +2,6 @@
 #include <string>
 #include <curl/curl.h>
 #include <astronomyapi_interface.cpp>
-#include <jsoncpp/json/json.h>
 #include <vector>
 
 int main()
@@ -21,25 +20,13 @@ int main()
     Whiston.time = "21:30:00";
 
     std::string target = "jupiter";
-    std::string apiresponse = getBodyPosition(target,Whiston,generateAuthString(AppID,AppSecretKey));
-    //std::cout << apiresponse << std::endl;
-    Json::Reader reader;
-    Json::Value Response;
-    reader.parse(apiresponse,Response);
-    //Json::Value Response = Response["data"];
-    //Json::Value Response = Response["table"];
-    //Json::Value namedata = Response["rows"];
-    //std::cout << "id: " << namedata["id"] << std::endl;
-    //std::cout << "name: " << namedata["name"] << std::endl;
-    //std::cout << namedata << std:: endl;
+    BodyProperties apiresponse = getBodyPosition(target,Whiston,generateAuthString(AppID,AppSecretKey));
 
-    //std::vector<std::string> memberNames = Response["data"]["table"]["rows"][0].getMemberNames();
-    int numberofrows = Response["data"]["table"]["rows"][0].size();
-    std::cout << "id:            " << Response["data"]["table"]["rows"][0]["cells"][0]["id"] << std::endl;
-    std::cout << "name:          " << Response["data"]["table"]["rows"][0]["entry"]["name"] << std::endl;
-    std::cout << "RA:            " << Response["data"]["table"]["rows"][0]["cells"][0]["position"]["equatorial"]["rightAscension"]["string"] << std::endl;
-    std::cout << "Dec:           " << Response["data"]["table"]["rows"][0]["cells"][0]["position"]["equatorial"]["declination"]["string"] << std::endl;
-    std::cout << "Constellation: " << Response["data"]["table"]["rows"][0]["cells"][0]["position"]["constellation"]["name"] << std::endl;
+    std::cout << "id:            " << apiresponse.id << std::endl;
+    std::cout << "name:          " << apiresponse.name << std::endl;
+    std::cout << "RA:            " << apiresponse.RA << std::endl;
+    std::cout << "Dec:           " << apiresponse.DEC << std::endl;
+    std::cout << "Constellation: " << apiresponse.Constellation << std::endl;
 
 
     return 0;

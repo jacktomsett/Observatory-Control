@@ -3,6 +3,7 @@
 #include <Date.h>
 #include <Date.cpp>
 #include <iostream>
+#include <jsoncpp/json/json.h>
 
 //Define structures
 struct ObserverParams
@@ -18,7 +19,11 @@ struct BodyProperties
 {
     std::string id;
     std::string name;
-
+    float RA;
+    float DEC;
+    float ALT;
+    float AZ;
+    std::string Constellation;
 
 };
 
@@ -69,11 +74,23 @@ std::string astronomyapiGetrequest(std::string URL, std::string AuthString)
 //====================AstronomyAPI functions=======================//
 //Bodies
 
-std::string getBodyPosition(std::string body, ObserverParams Observer, std::string AuthString)
+BodyProperties getBodyPosition(std::string body, ObserverParams Observer, std::string AuthString)
 {
     std::string URL = "https://api.astronomyapi.com/api/v2/bodies/positions/" + body + buildQueryString(Observer);
-    //std::cout << URL << std::endl;
-    return astronomyapiGetrequest(URL,AuthString);
+    Json::Reader reader;
+    Json::Value Response;
+    reader.parse(astronomyapiGetrequest(URL,AuthString),Response);
+    BodyProperties PositionData;
+    PositionData.id   = Response["data"]["table"]["rows"][0]["cells"][0]["id"].asString();
+    PositionData.name = Response["data"]["table"]["rows"][0]["entry"]["name"].asString();
+    std::string RAstring   = Response["data"]["table"]["rows"][0]["cells"][0]["position"]["equatorial"]["rightAscension"]["hours"].toStyledString();
+    RAstring = RAstring.substr(1,RAstring.length()-3);
+    PositionData.RA = stof(RAstring);
+    std::string DECstring  = Response["data"]["table"]["rows"][0]["cells"][0]["position"]["equatorial"]["declination"]["degrees"].toStyledString();
+    DECstring = DECstring.substr(1,DECstring.length()-3);
+    PositionData.DEC = stof(DECstring);
+
+    return PositionData;
 }
 
 
