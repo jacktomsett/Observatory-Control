@@ -72,7 +72,7 @@ std::string astronomyapiGetrequest(std::string URL, std::string AuthString)
 std::string getBodyPosition(std::string body, ObserverParams Observer, std::string AuthString)
 {
     std::string URL = "https://api.astronomyapi.com/api/v2/bodies/positions/" + body + buildQueryString(Observer);
-    std::cout << URL << std::endl;
+    //std::cout << URL << std::endl;
     return astronomyapiGetrequest(URL,AuthString);
 }
 

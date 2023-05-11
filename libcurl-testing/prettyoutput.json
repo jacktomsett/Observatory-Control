@@ -1,0 +1,82 @@
+{
+  "data": {
+    "dates": {
+      "from": "2023-05-10T21:30:00.000Z",
+      "to": "2023-05-10T21:30:00.000Z"
+    },
+    "observer": {
+      "location": {
+        "longitude": 2.801705,
+        "latitude": 53.412792,
+        "elevation": 1
+      }
+    },
+    "table": {
+      "header": [
+        "2023-05-10T21:30:00.000Z"
+      ],
+      "rows": [
+        {
+          "entry": {
+            "id": "jupiter",
+            "name": "Jupiter"
+          },
+          "cells": [
+            {
+              "date": "2023-05-10T21:30:00.000Z",
+              "id": "jupiter",
+              "name": "Jupiter",
+              "distance": {
+                "fromEarth": {
+                  "au": "5.88166",
+                  "km": "879883624.44686"
+                }
+              },
+              "position": {
+                "horizontal": {
+                  "altitude": {
+                    "degrees": "-25.12",
+                    "string": "-26° 52' 48\""
+                  },
+                  "azimuth": {
+                    "degrees": "345.46",
+                    "string": "345° 27' 36\""
+                  }
+                },
+                "horizonal": {
+                  "altitude": {
+                    "degrees": "-25.12",
+                    "string": "-26° 52' 48\""
+                  },
+                  "azimuth": {
+                    "degrees": "345.46",
+                    "string": "345° 27' 36\""
+                  }
+                },
+                "equatorial": {
+                  "rightAscension": {
+                    "hours": "1.78",
+                    "string": "01h 46m 48s"
+                  },
+                  "declination": {
+                    "degrees": "9.88",
+                    "string": "9° 52' 48\""
+                  }
+                },
+                "constellation": {
+                  "id": "psc",
+                  "short": "Psc",
+                  "name": "Pisces"
+                }
+              },
+              "extraInfo": {
+                "elongation": 21.33596,
+                "magnitude": -2.05629
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

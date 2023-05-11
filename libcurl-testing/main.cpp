@@ -3,6 +3,7 @@
 #include <curl/curl.h>
 #include <astronomyapi_interface.cpp>
 #include <jsoncpp/json/json.h>
+#include <vector>
 
 int main()
 {
@@ -16,7 +17,7 @@ int main()
     Whiston.Longitude = 2.801705;
     Whiston.Elevation = 1;
     Whiston.StartDate = Date(2023,5,10);
-    Whiston.EndDate = Date(2023,05,11);
+    Whiston.EndDate = Date(2023,05,10);
     Whiston.time = "21:30:00";
 
     std::string target = "jupiter";
@@ -25,12 +26,21 @@ int main()
     Json::Reader reader;
     Json::Value Response;
     reader.parse(apiresponse,Response);
-    Json::Value bodydata = Response["table"];
-    Json::Value bodydatadata = bodydata["rows"];
-    Json::Value namedata = bodydatadata["entry"];
-    std::cout << "id: " << namedata["id"] << std::endl;
-    std::cout << "name: " << namedata["name"] << std::endl;
+    //Json::Value Response = Response["data"];
+    //Json::Value Response = Response["table"];
+    //Json::Value namedata = Response["rows"];
+    //std::cout << "id: " << namedata["id"] << std::endl;
+    //std::cout << "name: " << namedata["name"] << std::endl;
+    //std::cout << namedata << std:: endl;
 
+    std::vector<std::string> memberNames = Response["data"]["table"]["rows"][1]["entry"].getMemberNames();
+    int numberofrows = Response["data"]["table"]["rows"][1]["cells"].size();
+    std::string name = Response["data"]["table"]["rows"][1]["entry"]["name"].asString();
+    std::cout << "id:            " << Response["data"]["table"]["rows"][1]["cells"][1]["id"].asString() << std::endl;
+    std::cout << "name:          " << name << std::endl;
+    std::cout << "RA:            " << Response["data"]["table"]["rows"][1]["cells"][1]["position"]["equatorial"]["rightAscension"]["string"] << std::endl;
+    std::cout << "Dec:           " << Response["data"]["table"]["rows"][1]["cells"][1]["declination"]["equatorial"]["rightAscension"]["string"] << std::endl;
+    std::cout << "Constellation: " << Response["data"]["table"]["rows"][1]["cells"][1]["position"]["constellation"]["name"] << std::endl;
 
 
     return 0;
