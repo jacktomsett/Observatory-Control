@@ -2,8 +2,9 @@
 
 #Set some default variables
 INFOFILENAME=$(date --iso-8601=seconds)_capture_settings.txt
-NPFCALC=/home/jack/camera_control/NPF
-
+NPFCALC=/home/jack/Projects/Observatory-Control/CameraControl/NPF
+MESSIERFILE=/home/jack/Projects/Observatory-Control/CameraControl/Messier_Catalog.csv
+MESSIERDECCOLUMN=6
 
 #Parse input
 #ISO=$1
@@ -51,7 +52,6 @@ intexpr='^[0-9]+$'
 if ! [[ $NPHOTOS =~ $intexpr ]];
 then
 	echo "ERROR: Number of photos requested is not an integer"
-	echo Requested $NPHOTOS photos.
 	#Display usage
 	exit 1
 fi
@@ -223,20 +223,53 @@ fi
 if [ ! -z ${TARGET+x} ];
 then
 
-	#Obtain target declination from catalog, return invalid option if it is not found
-	DECLINATION=60
+	###Obtain target declination from catalog, return invalid option if it is not found
+	## This is going to be a pretty basic search. If the database format
+	## changes this will need to be updated
+
+	# First search database
+	MATCHES=$( grep $TARGET $MESSIERFILE )
+	# If there are multiple (or none) matches, print them and exit
+	if [ $(echo "$MATCHES" | wc -l ) -ne 1 ];
+	then
+		echo "Matches found:"
+		echo "$MATCHES"
+		exit 1
+	fi
+	# Extract the declination from the database. Again
+	# this will need to be adjusted if database changes
+	# ToDo: A better databse (maybe json) would be nice
+	DECLINATION=$(echo "$MATCHES" | csvcut -c $MESSIERDECCOLUMN )
+	# Convert raw declination into decimal for NPF program
+	# It could be argues that it would be far easier to
+	# modfiy the c++ program to accept the weird notation
+	# than messing around in bash but given I want to rip
+	# out the database anyway I dont want to mess with the
+	# NPF program
+
+	#replace degree symbol with decimal point
+	DECLINATION=$(echo $DECLINATION | sed s/°/./)
+
+	#Convert anything after the decimal point (divide by 60, multiply by 100)
+	#Not going to bother, overly complicated and I will just fix the database
+	#For now it will calculate bad exposures but not by much
+
 	#Obtain focal length and f-number from the camera
 	CAMERASETTINGS=$(gphoto2 --quiet --list-all-config)
 	FOCALLENGTH=$(echo "$CAMERASETTINGS" | sed -n '/\/main\/capturesettings\/focallength/{ n; n; n; n; p}' | sed 's/^.\{9\}//' )
 	FNUMBER=$(echo "$CAMERASETTINGS" | sed -n '/\/main\/capturesettings\/f-number/{ n; n; n; n; p}' | sed 's/^.\{11\}//' )
 
 	#Obtain the camera info file name
-	CAMERAFILE='/home/jack/camera_control/D3500.json'
+	CAMERAFILE='/home/jack/Projects/Observatory-Control/CameraControl/D3500.json'
 
 	#Get exposure time
-	#Should check the function exit code to check valid result
-
 	EXPOSURE=$($NPFCALC $FOCALLENGTH $FNUMBER $DECLINATION $CAMERAFILE 1 )
+	# Check exit code
+	if [ $? -ne 0 ];
+	then
+		echo "Error with NPF function, exiting script."
+		exit 1;
+	fi
 	echo Exposure calculated: $EXPOSURE
 	EXPOSUREMODE=script
 	gphoto2 --quiet --set-config /main/capturesettings/shutterspeed=52
