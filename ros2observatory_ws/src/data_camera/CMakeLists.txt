@@ -10,6 +10,17 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(interfaces REQUIRED)
 
+# Add executables
+add_executable(camera src/camera.cpp)
+ament_target_dependencies(camera rclcpp interfaces)
+
+# Install executables
+install(TARGETS
+  camera
+  DESTINATION lib/${PROJECT_NAME})
+
+
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights

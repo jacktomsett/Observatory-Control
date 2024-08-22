@@ -4,7 +4,8 @@
 #include <string>
 
 #include "rclcpp/rclcpp.hpp"
-#include "interfaces/srv/BatteryRequest.hpp"
+#include "interfaces/msg/placeholder.hpp"
+#include "interfaces/srv/battery_request.hpp"
 
 using namespace std::chrono_literals;
 
@@ -17,7 +18,7 @@ class DataCamera : public rclcpp::Node
     DataCamera()
     : Node("data_camera")
     {
-      publisher_ = this->create_publisher<interfaces::msg::placeholder>("data_stream", 10);
+      publisher_ = this->create_publisher<interfaces::msg::Placeholder>("data_stream", 10);
       timer_ = this->create_wall_timer(
       2000ms, std::bind(&DataCamera::timer_callback, this));
     }
@@ -31,7 +32,7 @@ class DataCamera : public rclcpp::Node
       publisher_->publish(message);
     }
     rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
+    rclcpp::Publisher<interfaces::msg::Placeholder>::SharedPtr publisher_;
     size_t count_;
 };
 
