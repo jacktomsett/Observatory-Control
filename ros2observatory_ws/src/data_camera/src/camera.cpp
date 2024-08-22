@@ -5,6 +5,8 @@
 #include <string>
 
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
+#include "rclcpp_components/register_node_macro.hpp"
 #include "interfaces/msg/placeholder.hpp"
 #include "interfaces/srv/battery_request.hpp"
 #include "interfaces/srv/confirmation.hpp"
@@ -109,7 +111,39 @@ class DataCamera : public rclcpp::Node
       rclcpp:Rate loop_rate(1);
       const auto goal = goal_handle->get_goal();
       auto feedback = std::make_shared<interfaces::action::Sequence::Feedback>();
-      
+      auto & current_image = feedback->current;
+      auto exit_status = std::make_shared<interfaces::action::Sequence::Result>();
+
+      for(int i = 1; (i < goal->length) && rclcpp::ok(); ++i)
+      {
+        //Check if there is a cancel request...
+        if (goal_handle->is_cancelling())
+        {
+          exit_status->confirmcomplete = "Sequence cancelled after " + feedback->current + " images";
+          goal_handle->canceled(exit_status);
+          RCLCPP_INFO(this->get_logger(), "Sequence cancelled");
+          return;
+        }
+
+        //Take image
+        capture_image();
+
+        //Update feedback
+        current_image++;
+        goal_handle->publish_feedback(feedback);
+        RCLCPP_INFO(this->get_logger(), "Published Feedback");
+
+        loop_rate.sleep();
+      }
+
+      //Check if goal is done
+      if(rclcpp::ok())
+      {
+        exit_status->confirmcomplete = "Sequence complete";
+        goal_handle->succeed(result);
+        RCLCPP_INFO(this->get_logger(), "Sequence completed");
+      }
+
     }
 };
 

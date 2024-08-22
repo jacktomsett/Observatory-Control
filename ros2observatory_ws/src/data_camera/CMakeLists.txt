@@ -10,6 +10,16 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(interfaces REQUIRED)
 
+add_library(action_server SHARED
+  src/camera.cpp)
+
+target_include_directories(action_server PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_definitions(action_server
+  PRIVATE "CUSTOM_ACTION_CPP_BUILDING_DLL")
+ament_target_dependencies(action_server)
+
 # Add executables
 add_executable(camera src/camera.cpp)
 ament_target_dependencies(camera rclcpp interfaces)
