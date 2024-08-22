@@ -16,6 +16,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/BatteryRequest.srv"
   "srv/Confirmation.srv"
   "msg/Placeholder.msg"
+  "action/Sequence.action"
 )
 
 
