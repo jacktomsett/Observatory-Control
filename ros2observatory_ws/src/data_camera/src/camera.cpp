@@ -27,26 +27,25 @@ class DataCamera : public rclcpp::Node
     DataCamera()
     : Node("data_camera")
     {
-      datapublisher   = this->create_publisher<interfaces::msg::Placeholder>("data_stream", 10);
+      imagepublisher   = this->create_publisher<interfaces::msg::Placeholder>("data_stream", 10);
       batteryservice  = this->create_service<interfaces::srv::BatteryRequest>(
         "battery_status", &battery_callback);
-      timer_ = this->create_wall_timer(
-        2000ms, std::bind(&DataCamera::timer_callback, this));
+
     }
 
   private:
-    void timer_callback()
+    void capture_image()
     {
       auto message = interfaces::msg::Placeholder();
-      message.image = "Published image";
+      message.image = "Here is an image";
       RCLCPP_INFO_STREAM(this->get_logger(), "Publishing: " << message.image);
-      datapublisher->publish(message);
+      imagepublisher->publish(message);
     }
 
-    rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<interfaces::msg::Placeholder>::SharedPtr datapublisher;
+
+    rclcpp::Publisher<interfaces::msg::Placeholder>::SharedPtr imagepublisher;
     rclcpp::Service<interfaces::srv::BatteryRequest>::SharedPtr batteryservice;
-    size_t count_;
+
 };
 
 int main(int argc, char * argv[])
