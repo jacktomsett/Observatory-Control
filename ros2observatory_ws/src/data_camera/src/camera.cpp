@@ -6,19 +6,10 @@
 #include "rclcpp/rclcpp.hpp"
 #include "interfaces/msg/placeholder.hpp"
 #include "interfaces/srv/battery_request.hpp"
+#include "interfaces/srv/confirmation.hpp"
 
 using namespace std::chrono_literals;
 
-/* This example creates a subclass of Node and uses std::bind() to register a
-* member function as a callback from the timer. */
-    void battery_callback(const std::shared_ptr<interfaces::srv::BatteryRequest::Request> request,
-      std::shared_ptr<interfaces::srv::BatteryRequest::Response> response)
-    {
-      int battery = 69;
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Battery status requested");
-      response->percentage = battery;
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: %ld", (long int)response->percentage);
-    }
 
 
 class DataCamera : public rclcpp::Node
@@ -27,9 +18,13 @@ class DataCamera : public rclcpp::Node
     DataCamera()
     : Node("data_camera")
     {
-      imagepublisher   = this->create_publisher<interfaces::msg::Placeholder>("data_stream", 10);
-      batteryservice  = this->create_service<interfaces::srv::BatteryRequest>(
-        "battery_status", &battery_callback);
+      imagepublisher      = this->create_publisher<interfaces::msg::Placeholder>("data_stream", 10);
+      startcaptureservice = this->create_service<interfaces::srv::Confirmation>(
+        "start_capture", std::bind(&DataCamera::startcapture_callback, this, std::placeholders::_1, std::placeholders::_2)
+      );
+      batteryservice      = this->create_service<interfaces::srv::BatteryRequest>(
+        "battery_status", std::bind(&DataCamera::battery_callback, this, std::placeholders::_1, std::placeholders::_2)
+      );
 
     }
 
@@ -42,9 +37,32 @@ class DataCamera : public rclcpp::Node
       imagepublisher->publish(message);
     }
 
+    //   SERVICE CALLBACKS
+    void startcapture_callback(const std::shared_ptr<interfaces::srv::Confirmation::Request> request,
+      std::shared_ptr<interfaces::srv::Confirmation::Response> response)
+    {
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Starting capture");
+      response->confirmation = "Starting capture...";
+      for (int i = 0; i < 5; i++){
+        this->capture_image();
+      }
+    }
+
+
+    void battery_callback(const std::shared_ptr<interfaces::srv::BatteryRequest::Request> request,
+      std::shared_ptr<interfaces::srv::BatteryRequest::Response> response)
+    {
+      int battery = 69;
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Battery status requested");
+      response->percentage = battery;
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: %ld", (long int)response->percentage);
+    }
+
 
     rclcpp::Publisher<interfaces::msg::Placeholder>::SharedPtr imagepublisher;
+    rclcpp::Service<interfaces::srv::Confirmation>::SharedPtr startcaptureservice;
     rclcpp::Service<interfaces::srv::BatteryRequest>::SharedPtr batteryservice;
+    
 
 };
 
