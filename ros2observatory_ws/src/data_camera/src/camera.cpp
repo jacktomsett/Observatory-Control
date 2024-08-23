@@ -51,20 +51,10 @@ class DataCamera : public rclcpp::Node
 
     //  PUBLISHERS, SUBSCRIBERS SERVICES AND ACTIONS
     rclcpp::Publisher<interfaces::msg::Placeholder>::SharedPtr imagepublisher;
-    rclcpp::Service<interfaces::srv::Confirmation>::SharedPtr startcaptureservice;
     rclcpp::Service<interfaces::srv::BatteryRequest>::SharedPtr batteryservice;
     rclcpp_action::Server<interfaces::action::Sequence>::SharedPtr sequenceaction;
 
     //  SERVICE CALLBACKS
-    void startcapture_callback(const std::shared_ptr<interfaces::srv::Confirmation::Request> request,
-      std::shared_ptr<interfaces::srv::Confirmation::Response> response)
-    {
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Starting capture");
-      response->confirmation = "Starting capture...";
-      for (int i = 0; i < 5; i++){
-        this->capture_image();
-      }
-    }
 
 
     void battery_callback(const std::shared_ptr<interfaces::srv::BatteryRequest::Request> request,
@@ -77,6 +67,7 @@ class DataCamera : public rclcpp::Node
     }
 
     //  ACTION CALLBACKS
+    //====== Sequence Action =========
     rclcpp_action::GoalResponse sequence_goal(
       const rclcpp_action::GoalUUID & uuid,
       std::shared_ptr<const interfaces::action::Sequence::Goal> goal
@@ -106,10 +97,6 @@ class DataCamera : public rclcpp::Node
       //Interactions with gphoto will be done in a different thread.
       std::thread{std::bind(&DataCamera::sequence_execute, this, std::placeholders::_1), goal_handle}.detach();
     }
-
-
-
-
 
     void sequence_execute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goal_handle)
     {
@@ -151,6 +138,7 @@ class DataCamera : public rclcpp::Node
       }
 
     }
+    //===== Sequence Action end
 };
 
 int main(int argc, char * argv[])
