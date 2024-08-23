@@ -10,6 +10,7 @@
 #include "interfaces/msg/placeholder.hpp"
 #include "interfaces/srv/battery_request.hpp"
 #include "interfaces/srv/confirmation.hpp"
+#include "interfaces/action/sequence.hpp"
 
 using namespace std::chrono_literals;
 
@@ -31,9 +32,9 @@ class DataCamera : public rclcpp::Node
       sequenceaction      = rclcpp_action::create_server<interfaces::action::Sequence>(
         this, "sequence",
         std::bind(&DataCamera::sequence_goal, this, std::placeholders::_1, std::placeholders::_2),
-        std::bind(&DataCamera::sequence_cancel, this, std::placeholders::_1, std::placeholders::_2),
-        std::bind(&DataCamera::sequence_accepted, this, std::placeholders::_1, std::placeholders::_2)
-      )
+        std::bind(&DataCamera::sequence_cancel, this, std::placeholders::_1),
+        std::bind(&DataCamera::sequence_accepted, this, std::placeholders::_1)
+      );
 
     }
 
@@ -76,13 +77,6 @@ class DataCamera : public rclcpp::Node
     }
 
     //  ACTION CALLBACKS
-    void sequence_accepted(const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goal_handle)
-    {
-      //This callback needs to finish quickly so it does not freeze up the system.
-      //Interactions with gphoto will be done in a different thread.
-      std::thread{std::bind(&DataCamera::capture_sequence, this, std::placeholders::-1),goal_handle}.detach();
-    }
-
     rclcpp_action::GoalResponse sequence_goal(
       const rclcpp_action::GoalUUID & uuid,
       std::shared_ptr<const interfaces::action::Sequence::Goal> goal
@@ -105,10 +99,22 @@ class DataCamera : public rclcpp::Node
     }//Accoring to tutorial, this just tells the client that the cancellation has been accepted. Presumable to actually
     //cancel something you would need to do something with the goal_handle parameter.
 
-    void capture_sequence(const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goal_handle)
+
+    void sequence_accepted(const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goal_handle)
+    {
+      //This callback needs to finish quickly so it does not freeze up the system.
+      //Interactions with gphoto will be done in a different thread.
+      std::thread{std::bind(&DataCamera::sequence_execute, this, std::placeholders::_1), goal_handle}.detach();
+    }
+
+
+
+
+
+    void sequence_execute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goal_handle)
     {
       RCLCPP_INFO(this->get_logger(), "Executing sequence");
-      rclcpp:Rate loop_rate(1);
+      rclcpp::Rate loop_rate(1);
       const auto goal = goal_handle->get_goal();
       auto feedback = std::make_shared<interfaces::action::Sequence::Feedback>();
       auto & current_image = feedback->current;
@@ -117,9 +123,9 @@ class DataCamera : public rclcpp::Node
       for(int i = 1; (i < goal->length) && rclcpp::ok(); ++i)
       {
         //Check if there is a cancel request...
-        if (goal_handle->is_cancelling())
+        if (goal_handle->is_canceling())
         {
-          exit_status->confirmcomplete = "Sequence cancelled after " + feedback->current + " images";
+          exit_status->confirmcomplete = "Sequence cancelled after " + feedback->current;
           goal_handle->canceled(exit_status);
           RCLCPP_INFO(this->get_logger(), "Sequence cancelled");
           return;
@@ -140,8 +146,8 @@ class DataCamera : public rclcpp::Node
       if(rclcpp::ok())
       {
         exit_status->confirmcomplete = "Sequence complete";
-        goal_handle->succeed(result);
-        RCLCPP_INFO(this->get_logger(), "Sequence completed");
+        goal_handle->succeed(exit_status);
+        RCLCPP_INFO(this->get_logger(), "Sequence succeeded");
       }
 
     }
