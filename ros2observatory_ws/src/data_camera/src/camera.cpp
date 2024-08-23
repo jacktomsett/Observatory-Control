@@ -10,6 +10,7 @@
 #include "interfaces/msg/placeholder.hpp"
 #include "interfaces/srv/battery_request.hpp"
 #include "interfaces/srv/confirmation.hpp"
+#include "interfaces/srv/isorequest.hpp"
 #include "interfaces/action/sequence.hpp"
 
 using namespace std::chrono_literals;
@@ -52,11 +53,10 @@ class DataCamera : public rclcpp::Node
     //  PUBLISHERS, SUBSCRIBERS SERVICES AND ACTIONS
     rclcpp::Publisher<interfaces::msg::Placeholder>::SharedPtr imagepublisher;
     rclcpp::Service<interfaces::srv::BatteryRequest>::SharedPtr batteryservice;
+    rclcpp::Service<interfaces::srv::ISOrequest>::SharedPtr isoservice;
     rclcpp_action::Server<interfaces::action::Sequence>::SharedPtr sequenceaction;
 
     //  SERVICE CALLBACKS
-
-
     void battery_callback(const std::shared_ptr<interfaces::srv::BatteryRequest::Request> request,
       std::shared_ptr<interfaces::srv::BatteryRequest::Response> response)
     {
@@ -64,6 +64,18 @@ class DataCamera : public rclcpp::Node
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Battery status requested");
       response->percentage = battery;
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: %ld", (long int)response->percentage);
+    }
+
+    void iso_callback(const std::shared_ptr<interfaces::srv::ISOrequest::Request> request,
+      std::shared_ptr<interfaces::srv::ISOrequest::Response> response)
+    {
+      //Here we use gphoto to request available iso values from the camera.
+      //If the requested value is available, it is set and confirmation is given in the response.
+      //Otherwise the response lists available values
+
+      RCLCPP_INFO(rclcpp::get_loger("rclcpp"), "ISO setting request received: %ld", (long int) request->iso);
+      response->confirmation = "Requested iso not available, allowed values are: ";
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with fail status");
     }
 
     //  ACTION CALLBACKS
