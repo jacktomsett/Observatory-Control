@@ -31,6 +31,9 @@ class DataCamera : public rclcpp::Node
       batteryservice      = this->create_service<interfaces::srv::IntStatus>(
         "battery_status", std::bind(&DataCamera::battery_callback, this, std::placeholders::_1, std::placeholders::_2)
       );
+      isogetservice          = this->create_service<interfaces::srv::IntStatus>(
+        "get_iso", std::bind(&DataCamera::isoget_callback, this, std::placeholders::_1, std::placeholders::_2)
+      );
       isosetservice          = this->create_service<interfaces::srv::IntRequest>(
         "set_iso", std::bind(&DataCamera::isoset_callback, this, std::placeholders::_1, std::placeholders::_2)
       );
@@ -62,6 +65,7 @@ class DataCamera : public rclcpp::Node
     rclcpp::Publisher<interfaces::msg::Placeholder>::SharedPtr imagepublisher;
     rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
+    rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr isogetservice;
     rclcpp::Service<interfaces::srv::IntRequest>::SharedPtr isosetservice;
     rclcpp_action::Server<interfaces::action::Sequence>::SharedPtr sequenceaction;
 
@@ -72,6 +76,15 @@ class DataCamera : public rclcpp::Node
       int battery = 69;
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Battery status requested");
       response->value = battery;
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: %ld", (long int)response->value);
+    }
+
+    void isoget_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request> request,
+      std::shared_ptr<interfaces::srv::IntStatus::Response> response)
+    {
+      int iso = 400;
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO setting requested");
+      response->value = iso;
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: %ld", (long int)response->value);
     }
 
@@ -121,6 +134,8 @@ class DataCamera : public rclcpp::Node
         
       }
     }
+
+    
 
     //  ACTION CALLBACKS
     //====== Sequence Action =========
