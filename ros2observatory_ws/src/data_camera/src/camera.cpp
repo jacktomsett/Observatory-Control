@@ -8,6 +8,7 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 #include "interfaces/msg/placeholder.hpp"
+#include "interfaces/msg/event.hpp"
 #include "interfaces/srv/int_status.hpp"
 #include "interfaces/srv/int_request.hpp"
 #include "interfaces/srv/confirmation.hpp"
@@ -25,6 +26,7 @@ class DataCamera : public rclcpp::Node
     {
       //Initialise publishers
       imagepublisher      = this->create_publisher<interfaces::msg::Placeholder>("data_stream", 10);
+      eventpublisher      = this->create_publisher<interfaces::msg::Event>("camera_events", 10);
       //Initialise services
       batteryservice      = this->create_service<interfaces::srv::IntStatus>(
         "battery_status", std::bind(&DataCamera::battery_callback, this, std::placeholders::_1, std::placeholders::_2)
@@ -47,14 +49,18 @@ class DataCamera : public rclcpp::Node
     
     void capture_image()
     {
-      auto message = interfaces::msg::Placeholder();
-      message.image = "Here is an image";
-      RCLCPP_INFO_STREAM(this->get_logger(), "Publishing: " << message.image);
-      imagepublisher->publish(message);
+      auto imagemessage = interfaces::msg::Placeholder();
+      imagemessage.image = "Pretend this is an image";
+      auto eventmessage = interfaces::msg::Event();
+      eventmessage.event = "Image Captured";
+      RCLCPP_INFO_STREAM(this->get_logger(), "Publishing: " << imagemessage.image);
+      imagepublisher->publish(imagemessage);
+      eventpublisher->publish(eventmessage);
     }
 
     //  PUBLISHERS, SUBSCRIBERS SERVICES AND ACTIONS
     rclcpp::Publisher<interfaces::msg::Placeholder>::SharedPtr imagepublisher;
+    rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
     rclcpp::Service<interfaces::srv::IntRequest>::SharedPtr isosetservice;
     rclcpp_action::Server<interfaces::action::Sequence>::SharedPtr sequenceaction;
@@ -93,6 +99,9 @@ class DataCamera : public rclcpp::Node
         response->status = true;
         response->description = "Camera ISO set to " + std::to_string(request->demand);
         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO value changed to %ld", (long int) request->demand);
+        auto eventmessage = interfaces::msg::Event();
+        eventmessage.event = "ISO set to" + std::to_string(request->demand);
+        eventpublisher->publish(eventmessage);
       }
       else{
         std::string allowed_string = "[";
@@ -108,6 +117,8 @@ class DataCamera : public rclcpp::Node
         response->status = false;
         response->description = "Requested iso not available, allowed values are " + allowed_string;
         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with fail status");
+        
+        
       }
     }
 
