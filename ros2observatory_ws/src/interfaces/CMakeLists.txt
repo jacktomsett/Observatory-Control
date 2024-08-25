@@ -15,7 +15,7 @@ find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/BatteryRequest.srv"
   "srv/Confirmation.srv"
-  "srv/ISOrequest"
+  "srv/IsoRequest.srv"
   "msg/Placeholder.msg"
   "action/Sequence.action"
 )
