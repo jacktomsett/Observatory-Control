@@ -10,7 +10,7 @@
 #include "interfaces/msg/placeholder.hpp"
 #include "interfaces/srv/battery_request.hpp"
 #include "interfaces/srv/confirmation.hpp"
-#include "interfaces/srv/isorequest.hpp"
+#include "interfaces/srv/iso_request.hpp"
 #include "interfaces/action/sequence.hpp"
 
 using namespace std::chrono_literals;
@@ -23,13 +23,16 @@ class DataCamera : public rclcpp::Node
     DataCamera()
     : Node("data_camera")
     {
+      //Initialise publishers
       imagepublisher      = this->create_publisher<interfaces::msg::Placeholder>("data_stream", 10);
-      startcaptureservice = this->create_service<interfaces::srv::Confirmation>(
-        "start_capture", std::bind(&DataCamera::startcapture_callback, this, std::placeholders::_1, std::placeholders::_2)
-      );
+      //Initialise services
       batteryservice      = this->create_service<interfaces::srv::BatteryRequest>(
         "battery_status", std::bind(&DataCamera::battery_callback, this, std::placeholders::_1, std::placeholders::_2)
       );
+      isoservice          = this->create_service<interfaces::srv::IsoRequest>(
+        "set_iso", std::bind(&DataCamera::iso_callback, this, std::placeholders::_1, std::placeholders::_2)
+      );
+      //Initialise actions
       sequenceaction      = rclcpp_action::create_server<interfaces::action::Sequence>(
         this, "sequence",
         std::bind(&DataCamera::sequence_goal, this, std::placeholders::_1, std::placeholders::_2),
@@ -53,7 +56,7 @@ class DataCamera : public rclcpp::Node
     //  PUBLISHERS, SUBSCRIBERS SERVICES AND ACTIONS
     rclcpp::Publisher<interfaces::msg::Placeholder>::SharedPtr imagepublisher;
     rclcpp::Service<interfaces::srv::BatteryRequest>::SharedPtr batteryservice;
-    rclcpp::Service<interfaces::srv::ISOrequest>::SharedPtr isoservice;
+    rclcpp::Service<interfaces::srv::IsoRequest>::SharedPtr isoservice;
     rclcpp_action::Server<interfaces::action::Sequence>::SharedPtr sequenceaction;
 
     //  SERVICE CALLBACKS
@@ -66,16 +69,44 @@ class DataCamera : public rclcpp::Node
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: %ld", (long int)response->percentage);
     }
 
-    void iso_callback(const std::shared_ptr<interfaces::srv::ISOrequest::Request> request,
-      std::shared_ptr<interfaces::srv::ISOrequest::Response> response)
+    void iso_callback(const std::shared_ptr<interfaces::srv::IsoRequest::Request> request,
+      std::shared_ptr<interfaces::srv::IsoRequest::Response> response)
     {
       //Here we use gphoto to request available iso values from the camera.
       //If the requested value is available, it is set and confirmation is given in the response.
       //Otherwise the response lists available values
 
-      RCLCPP_INFO(rclcpp::get_loger("rclcpp"), "ISO setting request received: %ld", (long int) request->iso);
-      response->confirmation = "Requested iso not available, allowed values are: ";
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with fail status");
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO setting request received: %ld", (long int) request->iso);
+      
+
+      std::vector<int> allowed_values;
+      allowed_values.push_back(100);
+      allowed_values.push_back(200);
+      allowed_values.push_back(400);
+      allowed_values.push_back(600);
+      allowed_values.push_back(800);
+      allowed_values.push_back(1200);
+
+      
+      if(std::find(allowed_values.begin(), allowed_values.end(), request->iso) != allowed_values.end()){
+      //If requested value is present in allowed_value
+        response->confirmation = "Camera ISO set to " + std::to_string(request->iso);
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO value changed to %ld", (long int) request->iso);
+      }
+      else{
+        std::string allowed_string = "[";
+        for (int i = 0; i < allowed_values.size();i++) {
+          if (i != (allowed_string.size() -1)) {
+            allowed_string = allowed_string + std::to_string(allowed_values[i]) + ",";
+          }
+          else{
+            allowed_string = std::to_string(allowed_string[i]) + "]";
+          }
+        
+        }
+        response->confirmation = "Requested iso not available, allowed values are " + allowed_string;
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with fail status");
+      }
     }
 
     //  ACTION CALLBACKS
