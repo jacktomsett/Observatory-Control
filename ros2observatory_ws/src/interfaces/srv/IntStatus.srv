@@ -1,4 +1,4 @@
 #Request
 ---
 #Response
-int64 percentage
+int64 value

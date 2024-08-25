@@ -13,9 +13,11 @@ find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/IntStatus.srv"
+  "srv/IntRequest.srv"
   "srv/BatteryRequest.srv"
   "srv/Confirmation.srv"
-  "srv/IsoRequest.srv"
+  "srv/IsoSetRequest.srv"
   "msg/Placeholder.msg"
   "action/Sequence.action"
 )

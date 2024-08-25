@@ -8,9 +8,9 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 #include "interfaces/msg/placeholder.hpp"
-#include "interfaces/srv/battery_request.hpp"
+#include "interfaces/srv/int_status.hpp"
+#include "interfaces/srv/int_request.hpp"
 #include "interfaces/srv/confirmation.hpp"
-#include "interfaces/srv/iso_request.hpp"
 #include "interfaces/action/sequence.hpp"
 
 using namespace std::chrono_literals;
@@ -26,11 +26,11 @@ class DataCamera : public rclcpp::Node
       //Initialise publishers
       imagepublisher      = this->create_publisher<interfaces::msg::Placeholder>("data_stream", 10);
       //Initialise services
-      batteryservice      = this->create_service<interfaces::srv::BatteryRequest>(
+      batteryservice      = this->create_service<interfaces::srv::IntStatus>(
         "battery_status", std::bind(&DataCamera::battery_callback, this, std::placeholders::_1, std::placeholders::_2)
       );
-      isoservice          = this->create_service<interfaces::srv::IsoRequest>(
-        "set_iso", std::bind(&DataCamera::iso_callback, this, std::placeholders::_1, std::placeholders::_2)
+      isosetservice          = this->create_service<interfaces::srv::IntRequest>(
+        "set_iso", std::bind(&DataCamera::isoset_callback, this, std::placeholders::_1, std::placeholders::_2)
       );
       //Initialise actions
       sequenceaction      = rclcpp_action::create_server<interfaces::action::Sequence>(
@@ -55,28 +55,28 @@ class DataCamera : public rclcpp::Node
 
     //  PUBLISHERS, SUBSCRIBERS SERVICES AND ACTIONS
     rclcpp::Publisher<interfaces::msg::Placeholder>::SharedPtr imagepublisher;
-    rclcpp::Service<interfaces::srv::BatteryRequest>::SharedPtr batteryservice;
-    rclcpp::Service<interfaces::srv::IsoRequest>::SharedPtr isoservice;
+    rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
+    rclcpp::Service<interfaces::srv::IntRequest>::SharedPtr isosetservice;
     rclcpp_action::Server<interfaces::action::Sequence>::SharedPtr sequenceaction;
 
     //  SERVICE CALLBACKS
-    void battery_callback(const std::shared_ptr<interfaces::srv::BatteryRequest::Request> request,
-      std::shared_ptr<interfaces::srv::BatteryRequest::Response> response)
+    void battery_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request> request,
+      std::shared_ptr<interfaces::srv::IntStatus::Response> response)
     {
       int battery = 69;
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Battery status requested");
-      response->percentage = battery;
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: %ld", (long int)response->percentage);
+      response->value = battery;
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: %ld", (long int)response->value);
     }
 
-    void iso_callback(const std::shared_ptr<interfaces::srv::IsoRequest::Request> request,
-      std::shared_ptr<interfaces::srv::IsoRequest::Response> response)
+    void isoset_callback(const std::shared_ptr<interfaces::srv::IntRequest::Request> request,
+      std::shared_ptr<interfaces::srv::IntRequest::Response> response)
     {
       //Here we use gphoto to request available iso values from the camera.
       //If the requested value is available, it is set and confirmation is given in the response.
       //Otherwise the response lists available values
 
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO setting request received: %ld", (long int) request->iso);
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO setting request received: %ld", (long int) request->demand);
       
 
       std::vector<int> allowed_values;
@@ -88,10 +88,11 @@ class DataCamera : public rclcpp::Node
       allowed_values.push_back(1200);
 
       
-      if(std::find(allowed_values.begin(), allowed_values.end(), request->iso) != allowed_values.end()){
+      if(std::find(allowed_values.begin(), allowed_values.end(), request->demand) != allowed_values.end()){
       //If requested value is present in allowed_value
-        response->confirmation = "Camera ISO set to " + std::to_string(request->iso);
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO value changed to %ld", (long int) request->iso);
+        response->status = true;
+        response->description = "Camera ISO set to " + std::to_string(request->demand);
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO value changed to %ld", (long int) request->demand);
       }
       else{
         std::string allowed_string = "[";
@@ -104,7 +105,8 @@ class DataCamera : public rclcpp::Node
           }
         
         }
-        response->confirmation = "Requested iso not available, allowed values are " + allowed_string;
+        response->status = false;
+        response->description = "Requested iso not available, allowed values are " + allowed_string;
         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with fail status");
       }
     }
