@@ -16,6 +16,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Event.msg"
   "srv/IntStatus.srv"
   "srv/IntRequest.srv"
+  "srv/StringStatus.srv"
+  "srv/StringRequest.srv"
   "msg/Placeholder.msg"
   "action/Sequence.action"
 )

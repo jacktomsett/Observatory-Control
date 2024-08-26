@@ -1,0 +1,6 @@
+#Request
+string demand
+---
+#Response
+bool status
+string description
