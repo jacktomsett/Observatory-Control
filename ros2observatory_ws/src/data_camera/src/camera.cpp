@@ -129,11 +129,11 @@ class DataCamera : public rclcpp::Node
       else{
         std::string allowed_string = "[";
         for (int i = 0; i < allowed_values.size();i++) {
-          if (i != (allowed_string.size() -1)) {
+          if (i != (allowed_values.size() -1)) {
             allowed_string = allowed_string + std::to_string(allowed_values[i]) + ",";
           }
           else{
-            allowed_string = std::to_string(allowed_string[i]) + "]";
+            allowed_string = allowed_string + std::to_string(allowed_values[i]) + "]";
           }
         
         }
@@ -184,15 +184,11 @@ class DataCamera : public rclcpp::Node
       else{
         std::string allowed_string = "[" + allowed_values[0] + ",";
         for (int i = 1; i < allowed_values.size();i++) {
-          if (i < (allowed_string.size() -1)) {
-            std::cout << allowed_string.size() << "  ,  " << i << "  ,  " << allowed_values[i] << std::endl;
-            std::cout << allowed_string << std::endl;
+          if (i < (allowed_values.size() -1)) {
             allowed_string = allowed_string + allowed_values[i] + ",";
           }
           else{
             allowed_string = allowed_string + allowed_values[i] + "]";
-            std::cout << allowed_string.size() << "  ,  " << i << "  ,  " << allowed_values[i] << std::endl;
-            std::cout << allowed_string << std::endl;
           }
         
         }
