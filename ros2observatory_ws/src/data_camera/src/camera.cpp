@@ -3,6 +3,7 @@
 #include <memory>
 #include <thread>
 #include <string>
+#include <iostream>
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
@@ -11,7 +12,8 @@
 #include "interfaces/msg/event.hpp"
 #include "interfaces/srv/int_status.hpp"
 #include "interfaces/srv/int_request.hpp"
-#include "interfaces/srv/confirmation.hpp"
+#include "interfaces/srv/string_status.hpp"
+#include "interfaces/srv/string_request.hpp"
 #include "interfaces/action/sequence.hpp"
 
 using namespace std::chrono_literals;
@@ -36,6 +38,12 @@ class DataCamera : public rclcpp::Node
       );
       isosetservice          = this->create_service<interfaces::srv::IntRequest>(
         "set_iso", std::bind(&DataCamera::isoset_callback, this, std::placeholders::_1, std::placeholders::_2)
+      );
+      qualitygetservice = this->create_service<interfaces::srv::StringStatus>(
+        "get_imgquality", std::bind(&DataCamera::qualityget_callback, this, std::placeholders::_1, std::placeholders::_2)
+      );
+      qualitysetservice = this->create_service<interfaces::srv::StringRequest>(
+        "set_imgquality", std::bind(&DataCamera::qualityset_callback, this, std::placeholders::_1, std::placeholders::_2)
       );
       //Initialise actions
       sequenceaction      = rclcpp_action::create_server<interfaces::action::Sequence>(
@@ -67,6 +75,8 @@ class DataCamera : public rclcpp::Node
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr isogetservice;
     rclcpp::Service<interfaces::srv::IntRequest>::SharedPtr isosetservice;
+    rclcpp::Service<interfaces::srv::StringStatus>::SharedPtr qualitygetservice;
+    rclcpp::Service<interfaces::srv::StringRequest>::SharedPtr qualitysetservice;
     rclcpp_action::Server<interfaces::action::Sequence>::SharedPtr sequenceaction;
 
     //  SERVICE CALLBACKS
@@ -135,6 +145,64 @@ class DataCamera : public rclcpp::Node
       }
     }
 
+    void qualityget_callback(const std::shared_ptr<interfaces::srv::StringStatus::Request> request,
+      std::shared_ptr<interfaces::srv::StringStatus::Response> response)
+    {
+      std::string quality = "FINE";
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Image quaility setting enquiry received");
+      response->value = quality;
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: ");
+    }
+
+    void qualityset_callback(const std::shared_ptr<interfaces::srv::StringRequest::Request> request,
+      std::shared_ptr<interfaces::srv::StringRequest::Response> response)
+    {
+      //Here we use gphoto to request available iso values from the camera.
+      //If the requested value is available, it is set and confirmation is given in the response.
+      //Otherwise the response lists available values
+
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Image quality setting request received: ");
+      
+
+      std::vector<std::string> allowed_values;
+      allowed_values.push_back("LOW");
+      allowed_values.push_back("MEDIUM");
+      allowed_values.push_back("FINE");
+      allowed_values.push_back("RAW");
+      allowed_values.push_back("RAW+JPEG");
+
+      
+      if(std::find(allowed_values.begin(), allowed_values.end(), request->demand) != allowed_values.end()){
+      //If requested value is present in allowed_value
+        response->status = true;
+        response->description = "Image quaility set to " + request->demand;
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Image quality value changed to " );
+        auto eventmessage = interfaces::msg::Event();
+        eventmessage.event = "Image quality set to" + request->demand;
+        eventpublisher->publish(eventmessage);
+      }
+      else{
+        std::string allowed_string = "[" + allowed_values[0] + ",";
+        for (int i = 1; i < allowed_values.size();i++) {
+          if (i < (allowed_string.size() -1)) {
+            std::cout << allowed_string.size() << "  ,  " << i << "  ,  " << allowed_values[i] << std::endl;
+            std::cout << allowed_string << std::endl;
+            allowed_string = allowed_string + allowed_values[i] + ",";
+          }
+          else{
+            allowed_string = allowed_string + allowed_values[i] + "]";
+            std::cout << allowed_string.size() << "  ,  " << i << "  ,  " << allowed_values[i] << std::endl;
+            std::cout << allowed_string << std::endl;
+          }
+        
+        }
+        response->status = false;
+        response->description = "Requested iso not available, allowed values are " + allowed_string;
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with fail status");
+        
+        
+      }
+    }
     
 
     //  ACTION CALLBACKS
