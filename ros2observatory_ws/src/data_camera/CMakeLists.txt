@@ -5,16 +5,23 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+
+# set include paths for gphoto2
+include_directories(/usr/include/gphoto2)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(interfaces REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
+#find_package(GPHOTO2 REQUIRED)
+
 
 
 # Add executables
 add_executable(camera src/camera.cpp)
+target_link_libraries(camera -lgphoto2)
 ament_target_dependencies(camera rclcpp rclcpp_action rclcpp_components interfaces)
 
 # Install executables
