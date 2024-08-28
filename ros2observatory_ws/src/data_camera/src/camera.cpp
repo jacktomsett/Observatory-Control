@@ -23,6 +23,9 @@
 
 using namespace std::chrono_literals;
 
+
+//Following functions copied from libgphoto samples from github. They seem to be gphotos error log system. Eventually
+//need to figure out how to get it to write to ros info
 static void
 ctx_error_func (GPContext *context, const char *str, void *data)
 {
@@ -57,6 +60,7 @@ GPContext* sample_create_context() {
 	 */
 	return context;
 }
+// End of functions copied from libgphoto examples
 
 class DataCamera : public rclcpp::Node
 {
@@ -91,12 +95,19 @@ class DataCamera : public rclcpp::Node
         std::bind(&DataCamera::sequence_cancel, this, std::placeholders::_1),
         std::bind(&DataCamera::sequence_accepted, this, std::placeholders::_1)
       );
-
       //============ gphoto2 stuff===============//
-      //Detect camera
+      //Connect to camera
       context = sample_create_context();
+      isCameraConnected = detect_camera();
+      if (isCameraConnected == false)
+      {
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "No Camera detected at startup");
+      }
 
-
+      //Initialise detection timer
+      timercontext = 	gp_context_new(); //Basic context with no error reporting so the console doesnt get filled up
+      detection_timer = this->create_wall_timer(
+      500ms, std::bind(&DataCamera::detection_timer_callback, this));
     }
 
   private:
@@ -105,13 +116,40 @@ class DataCamera : public rclcpp::Node
     int         ret;
     GPContext   *context;
     CameraText  text;
+
+    GPContext   *timercontext;
     
     
-    
+    bool isCameraConnected;
     
     
     //  HELPER FUNCTIONS
     
+    bool detect_camera()
+    {
+	    /* This call will autodetect cameras, take the
+	     * first one from the list and use it. It will ignore
+	     * any others... See the *multi* examples on how to
+	     * detect and use more than the first one.
+	     */
+      //Initialise camera variable
+      gp_camera_new (&camera);
+	    ret = gp_camera_init (camera, timercontext);
+	    if (ret != GP_OK) {
+		    gp_camera_unref(camera);
+        return false;
+	    }
+      else {
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Connected to camera: ");
+        auto eventmessage = interfaces::msg::Event();
+        eventmessage.event = "Camera Connected";
+        eventpublisher->publish(eventmessage);
+        return true;
+      }
+    }
+
+
+
     void capture_image()
     {
       auto imagemessage = interfaces::msg::Placeholder();
@@ -123,7 +161,7 @@ class DataCamera : public rclcpp::Node
       eventpublisher->publish(eventmessage);
     }
 
-    //  PUBLISHERS, SUBSCRIBERS SERVICES AND ACTIONS
+    //  PUBLISHERS, SUBSCRIBERS, SERVICES, ACTIONS and TIMERS
     rclcpp::Publisher<interfaces::msg::Placeholder>::SharedPtr imagepublisher;
     rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
@@ -132,6 +170,7 @@ class DataCamera : public rclcpp::Node
     rclcpp::Service<interfaces::srv::StringStatus>::SharedPtr qualitygetservice;
     rclcpp::Service<interfaces::srv::StringRequest>::SharedPtr qualitysetservice;
     rclcpp_action::Server<interfaces::action::Sequence>::SharedPtr sequenceaction;
+    rclcpp::TimerBase::SharedPtr detection_timer;
 
     //  SERVICE CALLBACKS
     void battery_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request> request,
@@ -328,6 +367,15 @@ class DataCamera : public rclcpp::Node
 
     }
     //===== Sequence Action end
+
+    //Timer Callbacks
+    void detection_timer_callback()
+    {
+      if(!isCameraConnected)
+      {
+        isCameraConnected = detect_camera();
+      }
+    }
 };
 
 int main(int argc, char * argv[])
