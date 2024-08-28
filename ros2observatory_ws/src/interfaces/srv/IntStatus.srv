@@ -2,3 +2,5 @@
 ---
 #Response
 int64 value
+bool status
+string description

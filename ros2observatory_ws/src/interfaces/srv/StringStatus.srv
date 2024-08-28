@@ -2,3 +2,5 @@
 ---
 #Response
 string value
+bool status
+string description
