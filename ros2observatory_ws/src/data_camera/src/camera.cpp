@@ -113,12 +113,13 @@ class DataCamera : public rclcpp::Node
   private:
     // gphoto2 object handles
     Camera      *camera;
+    CameraList  *configlist;
     int         ret;
     GPContext   *context;
     CameraText  text;
 
     GPContext   *timercontext;
-    
+    CameraWidget *configwindow;
     
     bool isCameraConnected;
     
@@ -140,10 +141,28 @@ class DataCamera : public rclcpp::Node
         return false;
 	    }
       else {
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Connected to camera: ");
+        RCLCPP_INFO(this->get_logger(), "Connected to camera: ");
         auto eventmessage = interfaces::msg::Event();
         eventmessage.event = "Camera Connected";
         eventpublisher->publish(eventmessage);
+
+        //Get root widget...
+        ret = gp_camera_get_config(camera, &configwindow, context);
+        //Widget should now contain info
+        const char * widgetname;
+        ret = gp_widget_get_name(configwindow,&widgetname);
+        std::string name(widgetname);
+        std::cout << "Widget label: " << name  << std::endl;
+        std::cout << "# of Children: " << gp_widget_count_children(configwindow) << std::endl;
+        for(int i = 0; i < gp_widget_count_children(configwindow); i++){
+          CameraWidget *childwidget;
+          ret = gp_widget_get_child(configwindow,i, &childwidget);
+          const char * childwidgetname;;
+          ret = gp_widget_get_name(childwidget,&childwidgetname);
+          std::string childname(childwidgetname);
+          std::cout << "  " << childname << std::endl;
+        }
+
         return true;
       }
     }
@@ -179,9 +198,11 @@ class DataCamera : public rclcpp::Node
       RCLCPP_INFO(this->get_logger(), "Battery status requested");
       if(isCameraConnected){
         //Here is where we would get the batery info from the camera
-        int battery = 69;
-        
-        response->value = battery;
+        char* label = 
+
+        //Create widget for battery level setting
+
+        response->value = 69;
         response->status = true;
         response->description = "";
         RCLCPP_INFO(this->get_logger(), "Responding with: %ld", (long int)response->value);
@@ -272,7 +293,7 @@ class DataCamera : public rclcpp::Node
     void qualityget_callback(const std::shared_ptr<interfaces::srv::StringStatus::Request> request,
       std::shared_ptr<interfaces::srv::StringStatus::Response> response)
     {
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Image quaility setting enquiry received");
+      RCLCPP_INFO(this->get_logger(), "Image quaility setting enquiry received");
       if(isCameraConnected){
         //Get image quality setting from camera
         std::string quality = "FINE";
@@ -280,7 +301,7 @@ class DataCamera : public rclcpp::Node
         response->value = quality;
         response->status = true;
         response->description = "";        
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: ");
+        RCLCPP_INFO(this->get_logger(), "Responding with: ");
       }
       else{
         response->value = "";
@@ -297,7 +318,7 @@ class DataCamera : public rclcpp::Node
       //If the requested value is available, it is set and confirmation is given in the response.
       //Otherwise the response lists available values
 
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Image quality setting request received: ");
+      RCLCPP_INFO(this->get_logger(), "Image quality setting request received: ");
       if(isCameraConnected){
 
         std::vector<std::string> allowed_values;
@@ -330,7 +351,7 @@ class DataCamera : public rclcpp::Node
           }
           response->status = false;
           response->description = "Requested iso not available, allowed values are " + allowed_string;
-          RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with fail status");  
+          RCLCPP_INFO(this->get_logger(), "Responding with fail status");  
         
         }
       }
@@ -431,6 +452,7 @@ class DataCamera : public rclcpp::Node
           auto eventmessage = interfaces::msg::Event();
           eventmessage.event = "Camera Disconnected";
           eventpublisher->publish(eventmessage);
+          gp_list_free(configlist);
         }
       }
     }
