@@ -176,19 +176,44 @@ class DataCamera : public rclcpp::Node
     void battery_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request> request,
       std::shared_ptr<interfaces::srv::IntStatus::Response> response)
     {
-      int battery = 69;
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Battery status requested");
-      response->value = battery;
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: %ld", (long int)response->value);
+      RCLCPP_INFO(this->get_logger(), "Battery status requested");
+      if(isCameraConnected){
+        //Here is where we would get the batery info from the camera
+        int battery = 69;
+        
+        response->value = battery;
+        response->status = true;
+        response->description = "";
+        RCLCPP_INFO(this->get_logger(), "Responding with: %ld", (long int)response->value);
+      }
+      else{
+        response->value = 0;
+        response->status = false;
+        response->description = "Camera not connected";
+        RCLCPP_INFO(this->get_logger(), "Responding with fail status");
+      }
+
     }
 
     void isoget_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request> request,
       std::shared_ptr<interfaces::srv::IntStatus::Response> response)
     {
-      int iso = 400;
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO setting requested");
-      response->value = iso;
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: %ld", (long int)response->value);
+      RCLCPP_INFO(this->get_logger(), "ISO setting requested");
+      
+      if(isCameraConnected){
+        //Get iso information from camera
+        int iso = 400;
+        response->value = iso;
+        response->status = true;
+        response->description = "";
+        RCLCPP_INFO(this->get_logger(), "Responding with: %ld", (long int)response->value);
+      }
+      else{
+        response->value = 0;
+        response->status = false;
+        response->description = "Camera not connected";
+        RCLCPP_INFO(this->get_logger(), "Responding with fail status");
+      }
     }
 
     void isoset_callback(const std::shared_ptr<interfaces::srv::IntRequest::Request> request,
@@ -198,53 +223,71 @@ class DataCamera : public rclcpp::Node
       //If the requested value is available, it is set and confirmation is given in the response.
       //Otherwise the response lists available values
 
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO setting request received: %ld", (long int) request->demand);
+      RCLCPP_INFO(this->get_logger(), "ISO setting request received: %ld", (long int) request->demand);
       
-
-      std::vector<int> allowed_values;
-      allowed_values.push_back(100);
-      allowed_values.push_back(200);
-      allowed_values.push_back(400);
-      allowed_values.push_back(600);
-      allowed_values.push_back(800);
-      allowed_values.push_back(1200);
+      if(isCameraConnected){
+        std::vector<int> allowed_values;
+        allowed_values.push_back(100);
+        allowed_values.push_back(200);
+        allowed_values.push_back(400);
+        allowed_values.push_back(600);
+        allowed_values.push_back(800);
+        allowed_values.push_back(1200);
 
       
-      if(std::find(allowed_values.begin(), allowed_values.end(), request->demand) != allowed_values.end()){
-      //If requested value is present in allowed_value
-        response->status = true;
-        response->description = "Camera ISO set to " + std::to_string(request->demand);
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO value changed to %ld", (long int) request->demand);
-        auto eventmessage = interfaces::msg::Event();
-        eventmessage.event = "ISO set to" + std::to_string(request->demand);
-        eventpublisher->publish(eventmessage);
-      }
-      else{
-        std::string allowed_string = "[";
-        for (int i = 0; i < allowed_values.size();i++) {
-          if (i != (allowed_values.size() -1)) {
-            allowed_string = allowed_string + std::to_string(allowed_values[i]) + ",";
+        if(std::find(allowed_values.begin(), allowed_values.end(), request->demand) != allowed_values.end()){
+        //If requested value is present in allowed_value
+          response->status = true;
+          response->description = "Camera ISO set to " + std::to_string(request->demand);
+          RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO value changed to %ld", (long int) request->demand);
+          auto eventmessage = interfaces::msg::Event();
+          eventmessage.event = "ISO set to" + std::to_string(request->demand);
+          eventpublisher->publish(eventmessage);
+        }
+        else{
+          std::string allowed_string = "[";
+          for (int i = 0; i < allowed_values.size();i++) {
+            if (i != (allowed_values.size() -1)) {
+              allowed_string = allowed_string + std::to_string(allowed_values[i]) + ",";
+            }
+            else{
+              allowed_string = allowed_string + std::to_string(allowed_values[i]) + "]";
+            }
+        
           }
-          else{
-            allowed_string = allowed_string + std::to_string(allowed_values[i]) + "]";
-          }
+          response->status = false;
+          response->description = "Requested iso not available, allowed values are " + allowed_string;
+          RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with fail status");
+        
         
         }
+      }
+      else{
         response->status = false;
-        response->description = "Requested iso not available, allowed values are " + allowed_string;
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with fail status");
-        
-        
+        response->description = "Camera not connected";
+        RCLCPP_INFO(this->get_logger(), "Responding with fail status");
       }
     }
 
     void qualityget_callback(const std::shared_ptr<interfaces::srv::StringStatus::Request> request,
       std::shared_ptr<interfaces::srv::StringStatus::Response> response)
     {
-      std::string quality = "FINE";
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Image quaility setting enquiry received");
-      response->value = quality;
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: ");
+      if(isCameraConnected){
+        //Get image quality setting from camera
+        std::string quality = "FINE";
+
+        response->value = quality;
+        response->status = true;
+        response->description = "";        
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with: ");
+      }
+      else{
+        response->value = "";
+        response->status = false;
+        response->description = "Camera not connected";
+        RCLCPP_INFO(this->get_logger(), "Responding with fail status");
+      }
     }
 
     void qualityset_callback(const std::shared_ptr<interfaces::srv::StringRequest::Request> request,
@@ -255,41 +298,46 @@ class DataCamera : public rclcpp::Node
       //Otherwise the response lists available values
 
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Image quality setting request received: ");
-      
+      if(isCameraConnected){
 
-      std::vector<std::string> allowed_values;
-      allowed_values.push_back("LOW");
-      allowed_values.push_back("MEDIUM");
-      allowed_values.push_back("FINE");
-      allowed_values.push_back("RAW");
-      allowed_values.push_back("RAW+JPEG");
+        std::vector<std::string> allowed_values;
+        allowed_values.push_back("LOW");
+        allowed_values.push_back("MEDIUM");
+        allowed_values.push_back("FINE");
+        allowed_values.push_back("RAW");
+        allowed_values.push_back("RAW+JPEG");
 
       
-      if(std::find(allowed_values.begin(), allowed_values.end(), request->demand) != allowed_values.end()){
-      //If requested value is present in allowed_value
-        response->status = true;
-        response->description = "Image quaility set to " + request->demand;
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Image quality value changed to " );
-        auto eventmessage = interfaces::msg::Event();
-        eventmessage.event = "Image quality set to" + request->demand;
-        eventpublisher->publish(eventmessage);
-      }
-      else{
-        std::string allowed_string = "[" + allowed_values[0] + ",";
-        for (int i = 1; i < allowed_values.size();i++) {
-          if (i < (allowed_values.size() -1)) {
-            allowed_string = allowed_string + allowed_values[i] + ",";
+        if(std::find(allowed_values.begin(), allowed_values.end(), request->demand) != allowed_values.end()){
+        //If requested value is present in allowed_value
+          response->status = true;
+          response->description = "Image quaility set to " + request->demand;
+          RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Image quality value changed to " );
+          auto eventmessage = interfaces::msg::Event();
+          eventmessage.event = "Image quality set to" + request->demand;
+          eventpublisher->publish(eventmessage);
+        }
+        else{
+          std::string allowed_string = "[" + allowed_values[0] + ",";
+          for (int i = 1; i < allowed_values.size();i++) {
+            if (i < (allowed_values.size() -1)) {
+              allowed_string = allowed_string + allowed_values[i] + ",";
+            }
+            else{
+              allowed_string = allowed_string + allowed_values[i] + "]";
+            }
+        
           }
-          else{
-            allowed_string = allowed_string + allowed_values[i] + "]";
-          }
+          response->status = false;
+          response->description = "Requested iso not available, allowed values are " + allowed_string;
+          RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with fail status");  
         
         }
+      }
+      else{
         response->status = false;
-        response->description = "Requested iso not available, allowed values are " + allowed_string;
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Responding with fail status");
-        
-        
+        response->description = "Camera not connected";
+        RCLCPP_INFO(this->get_logger(), "Responding with fail status");
       }
     }
     
