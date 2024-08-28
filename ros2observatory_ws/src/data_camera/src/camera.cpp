@@ -371,9 +371,19 @@ class DataCamera : public rclcpp::Node
     //Timer Callbacks
     void detection_timer_callback()
     {
-      if(!isCameraConnected)
-      {
+      if(!isCameraConnected){
         isCameraConnected = detect_camera();
+      }
+      else{
+        //Check camera is still connected
+        int retval = gp_camera_get_summary(camera,&text,timercontext);
+        if (retval == GP_ERROR_IO_USB_FIND){
+          isCameraConnected = false;
+          RCLCPP_INFO(this->get_logger(), "Camera not found");
+          auto eventmessage = interfaces::msg::Event();
+          eventmessage.event = "Camera Disconnected";
+          eventpublisher->publish(eventmessage);
+        }
       }
     }
 };
