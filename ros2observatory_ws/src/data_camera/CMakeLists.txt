@@ -8,6 +8,8 @@ endif()
 
 # set include paths for gphoto2
 include_directories(/usr/include/gphoto2)
+# set include path for other files containing functions ect.
+include_directories(src)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
