@@ -1,3 +1,7 @@
+#include <string.h>
+
+
+
 //Following functions copied from libgphoto samples from github. They seem to be gphotos error log system. Eventually
 //need to figure out how to get it to write to ros info
 static void
@@ -73,7 +77,7 @@ get_config_value_string (Camera *camera, const char *key, char **str, GPContext 
 		ret = _lookup_widget (widget, key, &child);
 		if (ret < GP_OK) {
 			fprintf (stderr, "lookup widget failed: %d\n", ret);
-			goto out;
+			return ret;
 		}
 	}
 
@@ -82,7 +86,7 @@ get_config_value_string (Camera *camera, const char *key, char **str, GPContext 
 	ret = gp_widget_get_type (child, &type);
 	if (ret < GP_OK) {
 		fprintf (stderr, "widget get type failed: %d\n", ret);
-		goto out;
+		return ret;
 	}
 	switch (type) {
         case GP_WIDGET_MENU:
@@ -92,7 +96,7 @@ get_config_value_string (Camera *camera, const char *key, char **str, GPContext 
 	default:
 		fprintf (stderr, "widget has bad type %d\n", type);
 		ret = GP_ERROR_BAD_PARAMETERS;
-		goto out;
+		return ret;
 	}
 
 	/* This is the actual query call. Note that we just
@@ -100,13 +104,10 @@ get_config_value_string (Camera *camera, const char *key, char **str, GPContext 
 	ret = gp_widget_get_value (child, &val);
 	if (ret < GP_OK) {
 		fprintf (stderr, "could not query widget value: %d\n", ret);
-		goto out;
+		return ret;
 	}
 	/* Create a new copy for our caller. */
 	*str = strdup (val);
-out:
-	gp_widget_free (widget);
-	return ret;
 }
 
 

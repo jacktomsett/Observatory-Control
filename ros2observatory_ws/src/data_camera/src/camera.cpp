@@ -165,9 +165,23 @@ class DataCamera : public rclcpp::Node
       RCLCPP_INFO(this->get_logger(), "Battery status requested");
       if(isCameraConnected){
         //Here is where we would get the batery info from the camera
-        
+        int ret;
+        char  *batterylevel;
 
-        //Create widget for battery level setting
+        ret = get_config_value_string(camera,"batterylevel",&batterylevel,context);
+        if (ret < GP_OK){
+          RCLCPP_INFO(this->get_logger(), "Error fetching battery level from camera");
+          //Would be nice to print the gphoto error message to the ROS info system here
+          //...
+          response->value = 0;
+          response->status = false;
+          response->description = "Error fetching battery level from camera";
+          RCLCPP_INFO(this->get_logger(), "Responding with fail status");
+        }
+        else{
+          std::string batterylevel_string(batterylevel);
+          std::cout << "Battery level: " << batterylevel_string << std::endl;
+        }
 
         response->value = 69;
         response->status = true;
