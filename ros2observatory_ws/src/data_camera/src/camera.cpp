@@ -155,25 +155,17 @@ class DataCamera : public rclcpp::Node
         //Here is where we would get the batery info from the camera
         int ret;
         char  *batterylevel;
-
         ret = get_config_value_string(camera,"batterylevel",&batterylevel,context);
         if (ret < GP_OK){
-          std::cout << ret << std::endl;
           RCLCPP_INFO(this->get_logger(), "Error fetching battery level from camera");
           //Would be nice to print the gphoto error message to the ROS info system here
-          //...
-          //std::string error = get_error_as_string(ret);
-          //std::cout << error << std::endl;
           response->value = 0;
           response->status = false;
           response->description = "Error fetching battery level from camera";
-          RCLCPP_INFO(this->get_logger(), "Responding with fail status");
-          
-          
+          RCLCPP_INFO(this->get_logger(), "Responding with fail status");          
         }
         else{
           std::string batterylevel_string(batterylevel);
-          std::cout << "Battery level: " << batterylevel_string << std::endl;
           //Remove percentage sign from string
           batterylevel_string.pop_back();
           response->value = std::stoi(batterylevel_string);
@@ -196,14 +188,27 @@ class DataCamera : public rclcpp::Node
       std::shared_ptr<interfaces::srv::IntStatus::Response> response)
     {
       RCLCPP_INFO(this->get_logger(), "ISO setting requested");
-      
       if(isCameraConnected){
-        //Get iso information from camera
-        int iso = 400;
-        response->value = iso;
-        response->status = true;
-        response->description = "";
-        RCLCPP_INFO(this->get_logger(), "Responding with: %ld", (long int)response->value);
+        int ret;
+        char  *isosetting;
+        ret = get_config_value_string(camera,"iso",&isosetting,context);
+        if (ret < GP_OK){
+          RCLCPP_INFO(this->get_logger(), "Error fetching ISO setting from camera");
+          //Would be nice to print the gphoto error message to the ROS info system here
+          response->value = 0;
+          response->status = false;
+          response->description = "Error fetching ISO setting from camera";
+          RCLCPP_INFO(this->get_logger(), "Responding with fail status");          
+        }
+        else{
+          std::string isosetting_string(isosetting);
+          std::cout << "ISO Setting: " << isosetting_string << std::endl;
+          response->value = std::stoi(isosetting_string);
+          response->status = true;
+          response->description = "";
+          RCLCPP_INFO(this->get_logger(), "Responding with: %ld", (long int)response->value);
+        }
+
       }
       else{
         response->value = 0;
@@ -271,13 +276,25 @@ class DataCamera : public rclcpp::Node
     {
       RCLCPP_INFO(this->get_logger(), "Image quaility setting enquiry received");
       if(isCameraConnected){
-        //Get image quality setting from camera
-        std::string quality = "FINE";
+        int ret;
+        char  *imgquality;
+        ret = get_config_value_string(camera,"imagequality",&imgquality,context);
+        if (ret < GP_OK){
+          RCLCPP_INFO(this->get_logger(), "Error fetching image quality setting from camera");
+          //Would be nice to print the gphoto error message to the ROS info system here
+          response->value = "";
+          response->status = false;
+          response->description = "Error fetching image quality setting from camera";
+          RCLCPP_INFO(this->get_logger(), "Responding with fail status");          
+        }
+        else{
+          std::string imgquality_string(imgquality);
+          response->value = imgquality_string;
+          response->status = true;
+          response->description = "";
+          RCLCPP_INFO(this->get_logger(), "Responding with: " );    //TODO: fix this so it reports the value
+        }
 
-        response->value = quality;
-        response->status = true;
-        response->description = "";        
-        RCLCPP_INFO(this->get_logger(), "Responding with: ");
       }
       else{
         response->value = "";

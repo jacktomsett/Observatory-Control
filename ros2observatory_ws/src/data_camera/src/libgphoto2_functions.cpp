@@ -5,6 +5,7 @@
 #include <gphoto2/gphoto2-result.h>
 
 
+
 //Following functions copied from libgphoto samples from github. They seem to be gphotos error log system. Eventually
 //need to figure out how to get it to write to ros info
 static void
