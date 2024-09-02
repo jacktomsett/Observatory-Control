@@ -79,8 +79,10 @@ class DataCamera : public rclcpp::Node
     //Destructor
     ~DataCamera(){
       //Close any connections to camera
-      gp_camera_exit(camera, context);
-      gp_camera_free(camera);
+      if(isCameraConnected){
+        gp_camera_exit(camera, context);
+        gp_camera_free(camera);
+      }
     }
   private:
     // gphoto2 object handles
