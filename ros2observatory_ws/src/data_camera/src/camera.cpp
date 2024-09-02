@@ -30,6 +30,7 @@ using namespace std::chrono_literals;
 class DataCamera : public rclcpp::Node
 {
   public:
+    //Constructor
     DataCamera()
     : Node("data_camera")
     {
@@ -75,6 +76,12 @@ class DataCamera : public rclcpp::Node
       500ms, std::bind(&DataCamera::detection_timer_callback, this));
     }
 
+    //Destructor
+    ~DataCamera(){
+      //Close any connections to camera
+      gp_camera_exit(camera, context);
+      gp_camera_free(camera);
+    }
   private:
     // gphoto2 object handles
     Camera      *camera;
@@ -110,25 +117,6 @@ class DataCamera : public rclcpp::Node
         auto eventmessage = interfaces::msg::Event();
         eventmessage.event = "Camera Connected";
         eventpublisher->publish(eventmessage);
-
-        //Get root widget...
-        /*
-        ret = gp_camera_get_config(camera, &configwindow, context);
-        //Widget should now contain info
-        const char * widgetname;
-        ret = gp_widget_get_name(configwindow,&widgetname);
-        std::string name(widgetname);
-        std::cout << "Widget label: " << name  << std::endl;
-        std::cout << "# of Children: " << gp_widget_count_children(configwindow) << std::endl;
-        for(int i = 0; i < gp_widget_count_children(configwindow); i++){
-          CameraWidget *childwidget;
-          ret = gp_widget_get_child(configwindow,i, &childwidget);
-          const char * childwidgetname;;
-          ret = gp_widget_get_name(childwidget,&childwidgetname);
-          std::string childname(childwidgetname);
-          std::cout << "  " << childname << std::endl;
-        }
-        */
 
         return true;
       }
@@ -170,23 +158,30 @@ class DataCamera : public rclcpp::Node
 
         ret = get_config_value_string(camera,"batterylevel",&batterylevel,context);
         if (ret < GP_OK){
+          std::cout << ret << std::endl;
           RCLCPP_INFO(this->get_logger(), "Error fetching battery level from camera");
           //Would be nice to print the gphoto error message to the ROS info system here
           //...
+          //std::string error = get_error_as_string(ret);
+          //std::cout << error << std::endl;
           response->value = 0;
           response->status = false;
           response->description = "Error fetching battery level from camera";
           RCLCPP_INFO(this->get_logger(), "Responding with fail status");
+          
+          
         }
         else{
           std::string batterylevel_string(batterylevel);
           std::cout << "Battery level: " << batterylevel_string << std::endl;
+          //Remove percentage sign from string
+          batterylevel_string.pop_back();
+          response->value = std::stoi(batterylevel_string);
+          response->status = true;
+          response->description = "";
+          RCLCPP_INFO(this->get_logger(), "Responding with: %ld", (long int)response->value);
         }
 
-        response->value = 69;
-        response->status = true;
-        response->description = "";
-        RCLCPP_INFO(this->get_logger(), "Responding with: %ld", (long int)response->value);
       }
       else{
         response->value = 0;

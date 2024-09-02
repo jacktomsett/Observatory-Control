@@ -1,5 +1,8 @@
 #include <string.h>
-
+#include <string>
+#include <iostream>
+#include <gphoto2/gphoto2-port-result.h>
+#include <gphoto2/gphoto2-result.h>
 
 
 //Following functions copied from libgphoto samples from github. They seem to be gphotos error log system. Eventually
@@ -17,7 +20,12 @@ ctx_status_func (GPContext *context, const char *str, void *data)
         fprintf  (stderr, "%s\n", str);
         fflush   (stderr);
 }
-
+static void
+ctx_message_func (GPContext *context, const char *str, void *data)
+{
+        std::string message(str);
+		std::cout << message << std::endl;
+}
 GPContext* sample_create_context() {
 	GPContext *context;
 
@@ -27,6 +35,7 @@ GPContext* sample_create_context() {
 	/* All the parts below are optional! */
         gp_context_set_error_func (context, ctx_error_func, NULL);
         gp_context_set_status_func (context, ctx_status_func, NULL);
+		gp_context_set_message_func   (context, ctx_message_func, NULL);
 
 	/* also:
 	gp_context_set_cancel_func    (p->context, ctx_cancel_func,  p);
@@ -66,23 +75,24 @@ get_config_value_string (Camera *camera, const char *key, char **str, GPContext 
 
 	ret = gp_camera_get_single_config (camera, key, &child, context);
 	if (ret == GP_OK) {
-		if (!child) fprintf(stderr,"child is NULL?\n");
+		if (!child) std::cout << "child is NULL?" << std::endl;;
 		widget = child;
 	} else {
 		ret = gp_camera_get_config (camera, &widget, context);
 		if (ret < GP_OK) {
-			fprintf (stderr, "camera_get_config failed: %d\n", ret);
+			std::cout << "camera_get_config failed: " << ret << std::endl;
 			return ret;
 		}
 		ret = _lookup_widget (widget, key, &child);
 		if (ret < GP_OK) {
-			fprintf (stderr, "lookup widget failed: %d\n", ret);
+			std::cout << "lookup widget failed: " << ret << std::endl;
 			return ret;
 		}
 	}
-
+	
 	/* This type check is optional, if you know what type the label
 	 * has already. If you are not sure, better check. */
+	/*
 	ret = gp_widget_get_type (child, &type);
 	if (ret < GP_OK) {
 		fprintf (stderr, "widget get type failed: %d\n", ret);
@@ -98,16 +108,17 @@ get_config_value_string (Camera *camera, const char *key, char **str, GPContext 
 		ret = GP_ERROR_BAD_PARAMETERS;
 		return ret;
 	}
-
+	*/
 	/* This is the actual query call. Note that we just
 	 * a pointer reference to the string, not a copy... */
 	ret = gp_widget_get_value (child, &val);
 	if (ret < GP_OK) {
-		fprintf (stderr, "could not query widget value: %d\n", ret);
+		std::cout << "could not query widget value: " << ret << std::endl;
 		return ret;
 	}
 	/* Create a new copy for our caller. */
 	*str = strdup (val);
+	return ret;
 }
 
 
@@ -176,3 +187,13 @@ out:
 	gp_widget_free (widget);
 	return ret;
 }
+
+
+
+/*
+std::string get_error_as_string(int gp_error){
+	const char * result = gp_port_result_as_string(gp_error);
+	std::string result_string(result);
+	return result_string;
+}
+*/
