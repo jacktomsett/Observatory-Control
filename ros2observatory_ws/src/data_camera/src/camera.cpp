@@ -231,17 +231,25 @@ class DataCamera : public rclcpp::Node
       
       if(isCameraConnected){
         std::vector<int> allowed_values;
-        allowed_values.push_back(100);
-        allowed_values.push_back(200);
-        allowed_values.push_back(400);
-        allowed_values.push_back(600);
-        allowed_values.push_back(800);
-        allowed_values.push_back(1200);
+        //Obtain list of allowed values
+        CameraWidget		*widget = NULL, *child = NULL;
+        int			ret;
+        ret = gp_camera_get_config (camera, &widget, context);
+	      if (ret < GP_OK) {
+          //Return fail status here
+	      }
+        ret = _lookup_widget (widget, "iso", &child);
+        //Again... check errors here
+        int Nallowedvalues = gp_widget_count_choices(child);
+        const char * choice;
+        for (int i = 0; i < Nallowedvalues; i++){
+          ret = gp_widget_get_choice(child,i,&choice);
+          allowed_values.push_back(std::stoi(choice));
+        }
 
-      
+
         if(std::find(allowed_values.begin(), allowed_values.end(), request->demand) != allowed_values.end()){
           //If requested value is present in allowed_value
-          int ret;
           std::string demandstring = std::to_string(request->demand);
           const char  *isosetting = demandstring.c_str();
           ret = set_config_value_string (camera, "iso", isosetting, context);

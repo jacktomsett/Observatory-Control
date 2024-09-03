@@ -139,7 +139,7 @@ set_config_value_string (Camera *camera, const char *key, const char *val, GPCon
 	int			ret;
 
 	ret = gp_camera_get_config (camera, &widget, context);
-	std::cout << "Get config return value: " << ret << std::endl;
+	//std::cout << "Get config return value: " << ret << std::endl;
 	if (ret < GP_OK) {
 		std::cout << "camera_get_config failed: " << ret << std::endl;
 		return ret;
@@ -149,7 +149,6 @@ set_config_value_string (Camera *camera, const char *key, const char *val, GPCon
 		std::cout <<  "lookup widget failed: " << ret << std::endl;
 		return ret;
 	}
-
 	/* This type check is optional, if you know what type the label
 	 * has already. If you are not sure, better check. */
 	ret = gp_widget_get_type (child, &type);
@@ -159,8 +158,14 @@ set_config_value_string (Camera *camera, const char *key, const char *val, GPCon
 	}
 	switch (type) {
         case GP_WIDGET_MENU:
+			std::cout << "Widget type: Menu" << std::endl;
+			break;
         case GP_WIDGET_RADIO:
+			std::cout << "Widget type: Radio" << std::endl;
+			break;
         case GP_WIDGET_TEXT:
+			std::cout << "Widget type: Menu" << std::endl;
+			break;
 		break;
 	default:
 		std::cout <<  "widget has bad type: " << ret << std::endl;
@@ -172,13 +177,13 @@ set_config_value_string (Camera *camera, const char *key, const char *val, GPCon
 	 * ownership of the string and have to free it if necessary.
 	 */
 	ret = gp_widget_set_value (child, val);
-	std::cout << "gp_widget_set_value() returned error code: " << ret <<std::endl;
+	//std::cout << "gp_widget_set_value() returned error code: " << ret <<std::endl;
 	if (ret < GP_OK) {
-		std::cout <<  "could not set widget value: " << ret << std::endl;
+		//std::cout <<  "could not set widget value: " << ret << std::endl;
 		return ret;
 	}
 	ret = gp_camera_set_single_config (camera, key, child, context);
-	std::cout << "gp_camera_set_single_config() returned error code: " << ret <<std::endl;
+	//std::cout << "gp_camera_set_single_config() returned error code: " << ret <<std::endl;
 	//if (ret != GP_OK) {
 		/* This stores it on the camera again */
 		//ret = gp_camera_set_config (camera, widget, context);
