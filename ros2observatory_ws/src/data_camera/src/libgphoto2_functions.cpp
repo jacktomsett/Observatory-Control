@@ -140,21 +140,21 @@ set_config_value_string (Camera *camera, const char *key, const char *val, GPCon
 
 	ret = gp_camera_get_config (camera, &widget, context);
 	if (ret < GP_OK) {
-		fprintf (stderr, "camera_get_config failed: %d\n", ret);
+		std::cout << "camera_get_config failed: " << ret << std::endl;
 		return ret;
 	}
 	ret = _lookup_widget (widget, key, &child);
 	if (ret < GP_OK) {
-		fprintf (stderr, "lookup widget failed: %d\n", ret);
-		goto out;
+		std::cout <<  "lookup widget failed: " << ret << std::endl;
+		return ret;
 	}
 
 	/* This type check is optional, if you know what type the label
 	 * has already. If you are not sure, better check. */
 	ret = gp_widget_get_type (child, &type);
 	if (ret < GP_OK) {
-		fprintf (stderr, "widget get type failed: %d\n", ret);
-		goto out;
+		std::cout <<  "widget get type failed: " << ret << std::endl;
+		return ret;
 	}
 	switch (type) {
         case GP_WIDGET_MENU:
@@ -162,9 +162,9 @@ set_config_value_string (Camera *camera, const char *key, const char *val, GPCon
         case GP_WIDGET_TEXT:
 		break;
 	default:
-		fprintf (stderr, "widget has bad type %d\n", type);
+		std::cout <<  "widget has bad type: " << ret << std::endl;
 		ret = GP_ERROR_BAD_PARAMETERS;
-		goto out;
+		return ret;
 	}
 
 	/* This is the actual set call. Note that we keep
@@ -172,20 +172,19 @@ set_config_value_string (Camera *camera, const char *key, const char *val, GPCon
 	 */
 	ret = gp_widget_set_value (child, val);
 	if (ret < GP_OK) {
-		fprintf (stderr, "could not set widget value: %d\n", ret);
-		goto out;
+		std::cout <<  "could not set widget value: " << ret << std::endl;
+		return ret;
 	}
 	ret = gp_camera_set_single_config (camera, key, child, context);
 	if (ret != GP_OK) {
 		/* This stores it on the camera again */
 		ret = gp_camera_set_config (camera, widget, context);
 		if (ret < GP_OK) {
-			fprintf (stderr, "camera_set_config failed: %d\n", ret);
+			std::cout <<  "camera_set_config failed: " << ret << std::endl;
 			return ret;
 		}
 	}
-out:
-	gp_widget_free (widget);
+
 	return ret;
 }
 

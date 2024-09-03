@@ -240,7 +240,12 @@ class DataCamera : public rclcpp::Node
 
       
         if(std::find(allowed_values.begin(), allowed_values.end(), request->demand) != allowed_values.end()){
-        //If requested value is present in allowed_value
+          //If requested value is present in allowed_value
+          int ret;
+          std::string demandstring = std::to_string(request->demand);
+          const char  *isosetting = demandstring.c_str();
+          ret = set_config_value_string (camera, "iso", isosetting, context);
+
           response->status = true;
           response->description = "Camera ISO set to " + std::to_string(request->demand);
           RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO value changed to %ld", (long int) request->demand);
