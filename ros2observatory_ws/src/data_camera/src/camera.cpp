@@ -245,13 +245,19 @@ class DataCamera : public rclcpp::Node
           std::string demandstring = std::to_string(request->demand);
           const char  *isosetting = demandstring.c_str();
           ret = set_config_value_string (camera, "iso", isosetting, context);
-
-          response->status = true;
-          response->description = "Camera ISO set to " + std::to_string(request->demand);
-          RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO value changed to %ld", (long int) request->demand);
-          auto eventmessage = interfaces::msg::Event();
-          eventmessage.event = "ISO set to" + std::to_string(request->demand);
-          eventpublisher->publish(eventmessage);
+          if (ret == GP_OK){
+            response->status = true;
+            response->description = "Camera ISO set to " + std::to_string(request->demand);
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ISO value changed to %ld", (long int) request->demand);
+            auto eventmessage = interfaces::msg::Event();
+            eventmessage.event = "ISO set to" + std::to_string(request->demand);
+            eventpublisher->publish(eventmessage);
+          }
+          else{
+            response->status = false;
+            response->description = "Error changing setting on camera. Camera responded with GP Error code: " + std::to_string(ret);
+            RCLCPP_INFO(this->get_logger(), "Error changing setting on camera.");
+          }
         }
         else{
           std::string allowed_string = "[";

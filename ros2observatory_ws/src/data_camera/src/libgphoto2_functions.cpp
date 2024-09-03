@@ -139,6 +139,7 @@ set_config_value_string (Camera *camera, const char *key, const char *val, GPCon
 	int			ret;
 
 	ret = gp_camera_get_config (camera, &widget, context);
+	std::cout << "Get config return value: " << ret << std::endl;
 	if (ret < GP_OK) {
 		std::cout << "camera_get_config failed: " << ret << std::endl;
 		return ret;
@@ -171,19 +172,25 @@ set_config_value_string (Camera *camera, const char *key, const char *val, GPCon
 	 * ownership of the string and have to free it if necessary.
 	 */
 	ret = gp_widget_set_value (child, val);
+	std::cout << "gp_widget_set_value() returned error code: " << ret <<std::endl;
 	if (ret < GP_OK) {
 		std::cout <<  "could not set widget value: " << ret << std::endl;
 		return ret;
 	}
 	ret = gp_camera_set_single_config (camera, key, child, context);
-	if (ret != GP_OK) {
+	std::cout << "gp_camera_set_single_config() returned error code: " << ret <<std::endl;
+	//if (ret != GP_OK) {
 		/* This stores it on the camera again */
-		ret = gp_camera_set_config (camera, widget, context);
-		if (ret < GP_OK) {
-			std::cout <<  "camera_set_config failed: " << ret << std::endl;
-			return ret;
-		}
-	}
+		//ret = gp_camera_set_config (camera, widget, context);
+		//std::cout << "gp_camera_set_config() returned error code: " << ret <<std::endl;
+		//if (ret < GP_OK) {
+		//	std::cout <<  "camera_set_config failed: " << ret << std::endl;
+		//	return ret;
+		//}
+		//else{
+		//	return ret;
+		//}
+	//}
 
 	return ret;
 }
