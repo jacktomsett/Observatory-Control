@@ -87,13 +87,12 @@ class DataCamera : public rclcpp::Node
   private:
     // gphoto2 object handles
     Camera      *camera;
-    CameraList  *configlist;
     int         ret;
     GPContext   *context;
     CameraText  text;
 
     GPContext   *timercontext;
-    CameraWidget *configwindow;
+    CameraWidget *rootwidget;
     
     bool isCameraConnected;
     
@@ -115,10 +114,31 @@ class DataCamera : public rclcpp::Node
         return false;
 	    }
       else {
-        RCLCPP_INFO(this->get_logger(), "Connected to camera: ");
-        auto eventmessage = interfaces::msg::Event();
-        eventmessage.event = "Camera Connected";
-        eventpublisher->publish(eventmessage);
+        int ret = gp_camera_get_config (camera, &rootwidget, timercontext);
+        if(ret == GP_OK){
+          //Fetch camera make and model
+          CameraWidget *widget;
+          char *make;
+          char *model;
+          ret = gp_camera_get_single_config (camera, "manufacturer", &widget, timercontext);
+          ret = gp_widget_get_value(widget,&make);
+          ret = gp_camera_get_single_config (camera, "cameramodel", &widget, timercontext);
+          ret = gp_widget_get_value(widget,&model);
+
+          std::string makestring(make);
+          std::string modelstring(model);
+          std::string logstring = "Connected to camera: " + makestring + " " + modelstring;
+
+          RCLCPP_INFO(this->get_logger(), logstring.c_str());
+          auto eventmessage = interfaces::msg::Event();
+          eventmessage.event = "Camera Connected";
+          eventpublisher->publish(eventmessage);
+        }
+        else{
+          RCLCPP_INFO(this->get_logger(),"Camera detected but unable to get configuration");
+          gp_camera_unref(camera);
+          gp_widget_unref(rootwidget);
+        }
 
         return true;
       }
@@ -154,7 +174,7 @@ class DataCamera : public rclcpp::Node
     {
       RCLCPP_INFO(this->get_logger(), "Battery status requested");
       if(isCameraConnected){
-        //Here is where we would get the batery info from the camera
+        
         int ret;
         char  *batterylevel;
         ret = get_config_value_string(camera,"batterylevel",&batterylevel,context);
@@ -466,7 +486,6 @@ class DataCamera : public rclcpp::Node
           auto eventmessage = interfaces::msg::Event();
           eventmessage.event = "Camera Disconnected";
           eventpublisher->publish(eventmessage);
-          gp_list_free(configlist);
         }
       }
     }
