@@ -23,7 +23,7 @@ find_package(rclcpp_components REQUIRED)
 
 # Add executables
 add_executable(camera src/camera.cpp)
-target_link_libraries(camera -lgphoto2)
+target_link_libraries(camera -lgphoto2 -lgphoto2_port)
 ament_target_dependencies(camera rclcpp rclcpp_action rclcpp_components interfaces)
 
 # Install executables

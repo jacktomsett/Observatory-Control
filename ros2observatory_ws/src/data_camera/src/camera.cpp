@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include <gphoto2/gphoto2-camera.h>
+#include <gphoto2-port-result.h>
 #include <libgphoto2_functions.cpp>
 
 
@@ -172,9 +173,9 @@ class DataCamera : public rclcpp::Node
     void battery_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request> request,
       std::shared_ptr<interfaces::srv::IntStatus::Response> response)
     {
+      std::string errorstring;
       RCLCPP_INFO(this->get_logger(), "Battery status requested");
-      if(isCameraConnected){
-        
+        /*
         int ret;
         char  *batterylevel;
         ret = get_config_value_string(camera,"batterylevel",&batterylevel,context);
@@ -195,15 +196,41 @@ class DataCamera : public rclcpp::Node
           response->description = "";
           RCLCPP_INFO(this->get_logger(), "Responding with: %ld", (long int)response->value);
         }
-
+        */
+      int ret;
+      CameraWidget *widget;
+      char *batterylevel;
+      std::string batterystring;
+      if(!isCameraConnected){
+        errorstring = "Camera not connected";
+        goto batteryserviceerror;
       }
-      else{
-        response->value = 0;
-        response->status = false;
-        response->description = "Camera not connected";
-        RCLCPP_INFO(this->get_logger(), "Responding with fail status");
+      ret = gp_camera_get_single_config (camera, "batterylevel", &widget, context);
+      if(ret != GP_OK){
+        std::string resultstring(gp_port_result_as_string(ret));
+        errorstring = "Failed to get configuration widget: " + resultstring;
+        goto batteryserviceerror;
       }
-
+      ret = gp_widget_get_value(widget,&batterylevel);
+      if(ret != GP_OK){
+        std::string resultstring(gp_port_result_as_string(ret));
+        errorstring = "Failed to get configuration value: " + resultstring;
+        goto batteryserviceerror;
+      }
+      batterystring = std::string(batterylevel);
+      batterystring.pop_back(); //Remove percent sign
+      response->value = std::stoi(batterystring);
+      response->status = true;
+      response->description = "";
+      RCLCPP_INFO(this->get_logger(), "Responding with %d", response->value);
+      return;
+      
+      batteryserviceerror:
+      response->value = 0;
+      response->status = false;
+      response->description = errorstring.c_str();
+      RCLCPP_INFO(this->get_logger(), "Responding with fail status");
+      return;
     }
 
     void isoget_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request> request,
