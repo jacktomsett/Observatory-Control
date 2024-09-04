@@ -62,6 +62,11 @@ class DataCamera : public rclcpp::Node
         std::bind(&DataCamera::sequence_cancel, this, std::placeholders::_1),
         std::bind(&DataCamera::sequence_accepted, this, std::placeholders::_1)
       );
+      //Announce node start
+      auto eventmessage = interfaces::msg::Event();
+      eventmessage.event = "Camera Node starting";
+      eventpublisher->publish(eventmessage);
+
       //============ gphoto2 stuff===============//
       //Connect to camera
       context = sample_create_context();
@@ -75,12 +80,17 @@ class DataCamera : public rclcpp::Node
       timercontext = 	gp_context_new(); //Basic context with no error reporting so the console doesnt get filled up
       detection_timer = this->create_wall_timer(
       500ms, std::bind(&DataCamera::detection_timer_callback, this));
+
+
     }
 
     //Destructor
     ~DataCamera(){
       //Close any connections to camera
       if(isCameraConnected){
+        auto eventmessage = interfaces::msg::Event();
+        eventmessage.event = "Camera Node shutting down";
+        eventpublisher->publish(eventmessage);
         gp_camera_exit(camera, context);
         gp_camera_free(camera);
       }
@@ -132,7 +142,7 @@ class DataCamera : public rclcpp::Node
 
           RCLCPP_INFO(this->get_logger(), logstring.c_str());
           auto eventmessage = interfaces::msg::Event();
-          eventmessage.event = "Camera Connected";
+          eventmessage.event = "Camera Connected: " + makestring + " " + modelstring;
           eventpublisher->publish(eventmessage);
         }
         else{
