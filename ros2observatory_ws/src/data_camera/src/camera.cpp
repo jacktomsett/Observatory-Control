@@ -155,7 +155,32 @@ class DataCamera : public rclcpp::Node
       }
     }
 
-
+    bool get_setting_value(DataCamera *node,Camera *camera, GPContext *context, char * key, char ** value, std::string *errorstring){
+      int ret;
+      CameraWidget *widget;
+      char * val;
+      if(!node->isCameraConnected){   //Check node is currently connected to a camera
+        *errorstring = "Camera not connected";
+        goto error;
+      }
+      ret = gp_camera_get_single_config (camera, key, &widget, context);    //Fetch the configuration widget that corresponds to the setting
+      if(ret != GP_OK){
+        *errorstring = "Failed to get configuration widget: " + std::string(gp_port_result_as_string(ret));
+        goto error;
+      }
+      ret = gp_widget_get_value(widget,&val);   //Get the value associated with that configuration widget
+      if(ret != GP_OK){
+        *errorstring = "Failed to get configuration value: " + std::string(gp_port_result_as_string(ret));
+        goto error;
+      }
+      std::cout << val << std::endl;
+      //Copy string to passed variable... not sure why this is needed, need to improve my understanding of both cstrings and pointers
+      *value = strdup (val);
+      return true;
+      
+      error:
+      return false;
+    }
 
     void capture_image()
     {
@@ -185,96 +210,60 @@ class DataCamera : public rclcpp::Node
     {
       std::string errorstring;
       RCLCPP_INFO(this->get_logger(), "Battery status requested");
-        /*
-        int ret;
-        char  *batterylevel;
-        ret = get_config_value_string(camera,"batterylevel",&batterylevel,context);
-        if (ret < GP_OK){
-          RCLCPP_INFO(this->get_logger(), "Error fetching battery level from camera");
-          //Would be nice to print the gphoto error message to the ROS info system here
-          response->value = 0;
-          response->status = false;
-          response->description = "Error fetching battery level from camera";
-          RCLCPP_INFO(this->get_logger(), "Responding with fail status");          
-        }
-        else{
-          std::string batterylevel_string(batterylevel);
-          //Remove percentage sign from string
-          batterylevel_string.pop_back();
-          response->value = std::stoi(batterylevel_string);
-          response->status = true;
-          response->description = "";
-          RCLCPP_INFO(this->get_logger(), "Responding with: %ld", (long int)response->value);
-        }
-        */
-      int ret;
-      CameraWidget *widget;
       char *batterylevel;
-      std::string batterystring;
-      if(!isCameraConnected){
-        errorstring = "Camera not connected";
-        goto batteryserviceerror;
+      if(get_setting_value(this,camera,context,"batterylevel",&batterylevel,&errorstring)){ 
+        std::string batterystring = std::string(batterylevel);
+        batterystring.pop_back(); //Remove percent sign
+        response->value = std::stoi(batterystring);
+        response->status = true;
+        response->description = "";
+        RCLCPP_INFO(this->get_logger(), "Responding with %d", response->value);
       }
-      ret = gp_camera_get_single_config (camera, "batterylevel", &widget, context);
-      if(ret != GP_OK){
-        std::string resultstring(gp_port_result_as_string(ret));
-        errorstring = "Failed to get configuration widget: " + resultstring;
-        goto batteryserviceerror;
+      else{
+        response->value = 0;
+        response->status = false;
+        response->description = errorstring.c_str();
+        RCLCPP_INFO(this->get_logger(), "Responding with fail status");
       }
-      ret = gp_widget_get_value(widget,&batterylevel);
-      if(ret != GP_OK){
-        std::string resultstring(gp_port_result_as_string(ret));
-        errorstring = "Failed to get configuration value: " + resultstring;
-        goto batteryserviceerror;
-      }
-      batterystring = std::string(batterylevel);
-      batterystring.pop_back(); //Remove percent sign
-      response->value = std::stoi(batterystring);
-      response->status = true;
-      response->description = "";
-      RCLCPP_INFO(this->get_logger(), "Responding with %d", response->value);
-      return;
-      
-      batteryserviceerror:
-      response->value = 0;
-      response->status = false;
-      response->description = errorstring.c_str();
-      RCLCPP_INFO(this->get_logger(), "Responding with fail status");
       return;
     }
 
     void isoget_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request> request,
       std::shared_ptr<interfaces::srv::IntStatus::Response> response)
-    {
+    { 
+      std::string errorstring;
       RCLCPP_INFO(this->get_logger(), "ISO setting requested");
-      if(isCameraConnected){
-        int ret;
-        char  *isosetting;
-        ret = get_config_value_string(camera,"iso",&isosetting,context);
-        if (ret < GP_OK){
-          RCLCPP_INFO(this->get_logger(), "Error fetching ISO setting from camera");
-          //Would be nice to print the gphoto error message to the ROS info system here
-          response->value = 0;
-          response->status = false;
-          response->description = "Error fetching ISO setting from camera";
-          RCLCPP_INFO(this->get_logger(), "Responding with fail status");          
-        }
-        else{
-          std::string isosetting_string(isosetting);
-          std::cout << "ISO Setting: " << isosetting_string << std::endl;
-          response->value = std::stoi(isosetting_string);
-          response->status = true;
-          response->description = "";
-          RCLCPP_INFO(this->get_logger(), "Responding with: %ld", (long int)response->value);
-        }
-
+      int ret;
+      CameraWidget *widget;
+      char *isosetting;
+      std::string isostring;
+      if(!isCameraConnected){
+        errorstring = "Camera not connected";
+        goto isogetserviceerror;
       }
-      else{
-        response->value = 0;
-        response->status = false;
-        response->description = "Camera not connected";
-        RCLCPP_INFO(this->get_logger(), "Responding with fail status");
+      ret = gp_camera_get_single_config (camera, "iso", &widget, context);
+      if(ret != GP_OK){
+        errorstring = "Failed to get configuration widget: " + std::string(gp_port_result_as_string(ret));
+        goto isogetserviceerror;
       }
+      ret = gp_widget_get_value(widget,&isosetting);
+      if(ret != GP_OK){
+        errorstring = "Failed to get configuration value: " + std::string(gp_port_result_as_string(ret));
+        goto isogetserviceerror;
+      }
+      isostring = std::string(isosetting);
+      response->value = std::stoi(isostring);
+      response->status = true;
+      response->description = "";
+      RCLCPP_INFO(this->get_logger(), "Responding with %d", response->value);
+      return;
+      
+      isogetserviceerror:
+      response->value = 0;
+      response->status = false;
+      response->description = errorstring.c_str();
+      RCLCPP_INFO(this->get_logger(), "Responding with fail status");
+      return;
     }
 
     void isoset_callback(const std::shared_ptr<interfaces::srv::IntRequest::Request> request,
