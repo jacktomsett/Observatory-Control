@@ -3,6 +3,7 @@
 #include <memory>
 #include <thread>
 #include <string>
+#include <string.h>
 #include <stdlib.h>
 
 #include <gphoto2/gphoto2-camera.h>
@@ -182,6 +183,61 @@ class DataCamera : public rclcpp::Node
       return false;
     }
 
+    bool set_menu_setting_value(DataCamera *node,Camera *camera, GPContext *context, char * key, char ** demand, std::string *errorstring){
+      int ret, Nchoices;
+      CameraWidget *widget;
+      std::vector<std::string> allowed_values;
+      std::string allowed_string;
+      if(!node->isCameraConnected){ //Check node is currently connected to a camera
+        *errorstring = "Camera not connected";
+        goto seterror;
+      }
+      ret = gp_camera_get_single_config(camera,key,&widget,context); //Fetch the configuration widget
+      if(ret != GP_OK){
+        *errorstring = "Failed to get configuration widget: " + std::string(gp_port_result_as_string(ret));
+        goto seterror;
+      }
+      //Build list of allowed values
+      Nchoices = gp_widget_count_choices(widget);
+      const char * choice;
+      for (int i = 0; i < Nchoices; i++){
+        ret = gp_widget_get_choice(widget,i,&choice);
+        if (ret != GP_OK){
+          *errorstring = "Failed to get configuration choice: " + std::string(gp_port_result_as_string(ret));
+          goto seterror;
+        }
+        allowed_values.push_back(choice);
+      }
+      
+      //Check if demand is present in allowed values
+      if(!(std::find(allowed_values.begin(), allowed_values.end(),std::string(*demand)) != allowed_values.end())){
+        allowed_string = "[";
+        for (int i = 0; i < allowed_values.size(); i++){
+          if (i != (allowed_values.size()-1)){
+            allowed_string = allowed_string+allowed_values[i] + ",";
+          }
+          else{
+            allowed_string = allowed_string + allowed_values[i] + "]";
+          }
+        }
+        *errorstring = "Allowed values are: " + allowed_string;
+        goto seterror;
+      }
+      ret = gp_widget_set_value(widget,demand); //Update widget with new value
+      if(ret != GP_OK){
+        *errorstring = "Error updating widget with new value: " + std::string(gp_port_result_as_string(ret));
+        goto seterror;
+      }
+      ret = gp_camera_set_single_config(camera,key,widget,context);
+      if(ret != GP_OK){
+        *errorstring = "Error uploading configuration widget to camera: " + std::string(gp_port_result_as_string(ret));
+        goto seterror;
+      }
+      return true;
+      seterror:
+
+      return false;
+    }
     void capture_image()
     {
       auto imagemessage = interfaces::msg::Placeholder();
@@ -233,36 +289,20 @@ class DataCamera : public rclcpp::Node
     { 
       std::string errorstring;
       RCLCPP_INFO(this->get_logger(), "ISO setting requested");
-      int ret;
-      CameraWidget *widget;
       char *isosetting;
-      std::string isostring;
-      if(!isCameraConnected){
-        errorstring = "Camera not connected";
-        goto isogetserviceerror;
+      if(get_setting_value(this,camera,context,"iso",&isosetting,&errorstring)){ 
+        std::string isostring = std::string(isosetting);
+        response->value = std::stoi(isostring);
+        response->status = true;
+        response->description = "";
+        RCLCPP_INFO(this->get_logger(), "Responding with %d", response->value);
       }
-      ret = gp_camera_get_single_config (camera, "iso", &widget, context);
-      if(ret != GP_OK){
-        errorstring = "Failed to get configuration widget: " + std::string(gp_port_result_as_string(ret));
-        goto isogetserviceerror;
+      else{
+        response->value = 0;
+        response->status = false;
+        response->description = errorstring.c_str();
+        RCLCPP_INFO(this->get_logger(), "Responding with fail status");
       }
-      ret = gp_widget_get_value(widget,&isosetting);
-      if(ret != GP_OK){
-        errorstring = "Failed to get configuration value: " + std::string(gp_port_result_as_string(ret));
-        goto isogetserviceerror;
-      }
-      isostring = std::string(isosetting);
-      response->value = std::stoi(isostring);
-      response->status = true;
-      response->description = "";
-      RCLCPP_INFO(this->get_logger(), "Responding with %d", response->value);
-      return;
-      
-      isogetserviceerror:
-      response->value = 0;
-      response->status = false;
-      response->description = errorstring.c_str();
-      RCLCPP_INFO(this->get_logger(), "Responding with fail status");
       return;
     }
 
@@ -274,6 +314,7 @@ class DataCamera : public rclcpp::Node
       //Otherwise the response lists available values
 
       RCLCPP_INFO(this->get_logger(), "ISO setting request received: %ld", (long int) request->demand);
+      
       
       if(isCameraConnected){
         std::vector<int> allowed_values;
@@ -336,39 +377,32 @@ class DataCamera : public rclcpp::Node
         response->description = "Camera not connected";
         RCLCPP_INFO(this->get_logger(), "Responding with fail status");
       }
+      
+
+      
+
     }
 
     void qualityget_callback(const std::shared_ptr<interfaces::srv::StringStatus::Request> request,
       std::shared_ptr<interfaces::srv::StringStatus::Response> response)
     {
-      RCLCPP_INFO(this->get_logger(), "Image quaility setting enquiry received");
-      if(isCameraConnected){
-        int ret;
-        char  *imgquality;
-        ret = get_config_value_string(camera,"imagequality",&imgquality,context);
-        if (ret < GP_OK){
-          RCLCPP_INFO(this->get_logger(), "Error fetching image quality setting from camera");
-          //Would be nice to print the gphoto error message to the ROS info system here
-          response->value = "";
-          response->status = false;
-          response->description = "Error fetching image quality setting from camera";
-          RCLCPP_INFO(this->get_logger(), "Responding with fail status");          
-        }
-        else{
-          std::string imgquality_string(imgquality);
-          response->value = imgquality_string;
-          response->status = true;
-          response->description = "";
-          RCLCPP_INFO(this->get_logger(), "Responding with: " );    //TODO: fix this so it reports the value
-        }
-
+      std::string errorstring;
+      RCLCPP_INFO(this->get_logger(), "Current image quality setting requested");
+      char *qualitysetting;
+      if(get_setting_value(this,camera,context,"imagequality",&qualitysetting,&errorstring)){ 
+        response->value = qualitysetting;
+        response->status = true;
+        response->description = "";
+        std::string infomessage = "Responding with " + std::string(response->value);
+        RCLCPP_INFO(this->get_logger(), infomessage.c_str());
       }
       else{
         response->value = "";
         response->status = false;
-        response->description = "Camera not connected";
+        response->description = errorstring.c_str();
         RCLCPP_INFO(this->get_logger(), "Responding with fail status");
       }
+      return;
     }
 
     void qualityset_callback(const std::shared_ptr<interfaces::srv::StringRequest::Request> request,
