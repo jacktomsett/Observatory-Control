@@ -183,25 +183,30 @@ class DataCamera : public rclcpp::Node
       return false;
     }
 
-    bool set_menu_setting_value(DataCamera *node,Camera *camera, GPContext *context, char * key, char ** demand, std::string *errorstring){
+    bool set_menu_setting_value(DataCamera *node,Camera *camera, GPContext *context, char * key, const char * demand, std::string *errorstring){
       int ret, Nchoices;
-      CameraWidget *widget;
+      CameraWidget *widget=NULL, *child = NULL;
       std::vector<std::string> allowed_values;
       std::string allowed_string;
       if(!node->isCameraConnected){ //Check node is currently connected to a camera
         *errorstring = "Camera not connected";
         goto seterror;
       }
-      ret = gp_camera_get_single_config(camera,key,&widget,context); //Fetch the configuration widget
+      ret = gp_camera_get_config(camera,&widget,context); //Fetch the configuration widget
       if(ret != GP_OK){
-        *errorstring = "Failed to get configuration widget: " + std::string(gp_port_result_as_string(ret));
+        *errorstring = "Failed to get root configuration widget: " + std::string(gp_port_result_as_string(ret));
+        goto seterror;
+      }
+      ret = _lookup_widget(widget,key,&child);
+      if(ret != GP_OK){
+        *errorstring = "Failed to get setting configuration widget: " + std::string(gp_port_result_as_string(ret));
         goto seterror;
       }
       //Build list of allowed values
-      Nchoices = gp_widget_count_choices(widget);
+      Nchoices = gp_widget_count_choices(child);
       const char * choice;
       for (int i = 0; i < Nchoices; i++){
-        ret = gp_widget_get_choice(widget,i,&choice);
+        ret = gp_widget_get_choice(child,i,&choice);
         if (ret != GP_OK){
           *errorstring = "Failed to get configuration choice: " + std::string(gp_port_result_as_string(ret));
           goto seterror;
@@ -210,7 +215,7 @@ class DataCamera : public rclcpp::Node
       }
       
       //Check if demand is present in allowed values
-      if(!(std::find(allowed_values.begin(), allowed_values.end(),std::string(*demand)) != allowed_values.end())){
+      if(!(std::find(allowed_values.begin(), allowed_values.end(),std::string(demand)) != allowed_values.end())){
         allowed_string = "[";
         for (int i = 0; i < allowed_values.size(); i++){
           if (i != (allowed_values.size()-1)){
@@ -223,21 +228,32 @@ class DataCamera : public rclcpp::Node
         *errorstring = "Allowed values are: " + allowed_string;
         goto seterror;
       }
-      ret = gp_widget_set_value(widget,demand); //Update widget with new value
+      ret = gp_widget_set_value(child,demand); //Update widget with new value
       if(ret != GP_OK){
         *errorstring = "Error updating widget with new value: " + std::string(gp_port_result_as_string(ret));
         goto seterror;
       }
+      /*
       ret = gp_camera_set_single_config(camera,key,widget,context);
       if(ret != GP_OK){
+        ret = gp_camera_set_config(camera,widget,context);
+        if(ret!=GP_OK){
+          *errorstring = "Error uploading configuration widget to camera: " + std::string(gp_port_result_as_string(ret));
+          goto seterror;
+        }
+      }
+      */
+      ret = gp_camera_set_config(camera,widget,context);
+      if(ret!=GP_OK){
         *errorstring = "Error uploading configuration widget to camera: " + std::string(gp_port_result_as_string(ret));
         goto seterror;
       }
       return true;
       seterror:
-
+      std::cout << "Error block entered" << std::endl;
       return false;
     }
+    
     void capture_image()
     {
       auto imagemessage = interfaces::msg::Placeholder();
@@ -314,8 +330,7 @@ class DataCamera : public rclcpp::Node
       //Otherwise the response lists available values
 
       RCLCPP_INFO(this->get_logger(), "ISO setting request received: %ld", (long int) request->demand);
-      
-      
+      /*
       if(isCameraConnected){
         std::vector<int> allowed_values;
         //Obtain list of allowed values
@@ -377,9 +392,25 @@ class DataCamera : public rclcpp::Node
         response->description = "Camera not connected";
         RCLCPP_INFO(this->get_logger(), "Responding with fail status");
       }
-      
+      */
+      std::string errorstring;
+      std::string demandstring = std::to_string(request->demand);
+      const char* req = demandstring.c_str();
+      if(set_menu_setting_value(this,camera,context,"iso",req,&errorstring)){
+        response->status = true;
+        response->description = "Camera ISO set to " + std::to_string(request->demand);
+        RCLCPP_INFO(this->get_logger(), "ISO value changed to %ld", (long int) request->demand);
+        auto eventmessage = interfaces::msg::Event();
+        eventmessage.event = "ISO set to " + std::to_string(request->demand);
+        eventpublisher->publish(eventmessage);
+      }
+      else{
+        response->status = false;
+        response->description = errorstring.c_str();
+        RCLCPP_INFO(this->get_logger(), "Responding with fail status");
+      }
 
-      
+      return;
 
     }
 
