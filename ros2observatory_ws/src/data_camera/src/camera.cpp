@@ -72,11 +72,7 @@ class DataCamera : public rclcpp::Node
       //============ gphoto2 stuff===============//
       //Connect to camera
       context = sample_create_context();
-      isCameraConnected = detect_camera();
-      if (isCameraConnected == false)
-      {
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "No Camera detected at startup");
-      }
+      isCameraConnected = false;
 
       //Initialise detection timer
       timercontext = 	gp_context_new(); //Basic context with no error reporting so the console doesnt get filled up
@@ -112,13 +108,14 @@ class DataCamera : public rclcpp::Node
     
     //  HELPER FUNCTIONS
     
-    bool detect_camera()
+    void connect_camera()
     {
 	    /* This call will autodetect cameras, take the
 	     * first one from the list and use it. It will ignore
 	     * any others... See the *multi* examples on how to
 	     * detect and use more than the first one.
 	     */
+      /*
       //Initialise camera variable
       gp_camera_new (&camera);
 	    ret = gp_camera_init (camera, timercontext);
@@ -155,6 +152,49 @@ class DataCamera : public rclcpp::Node
 
         return true;
       }
+      */
+     //Initialise camera variable
+      gp_camera_new(&camera);
+      ret = gp_camera_init(camera, timercontext);
+      if(ret != GP_OK){
+        gp_camera_unref(camera);
+        return;
+      }
+      isCameraConnected = true; //Need to set this here so the get_setting_value functions work... might want to change this in the future
+      char *make;
+      char *model;
+      std::string errorstring;
+      if(!get_setting_value(this,camera,timercontext,"manufacturer",&make,&errorstring)){
+        RCLCPP_INFO_STREAM(this->get_logger(), "Camera detected but error fetching manufacturer: " << errorstring);
+        gp_camera_unref(camera);
+        isCameraConnected = false;
+        return;
+      }
+      if(!get_setting_value(this,camera,timercontext,"cameramodel",&model,&errorstring)){
+        RCLCPP_INFO_STREAM(this->get_logger(), "Camera detected but error fetching camera model: " << errorstring);
+        gp_camera_unref(camera);
+        isCameraConnected = false;
+        return;
+      }
+      //TODO: Set storage location to match node parameter once it is implemented
+
+      std::string makestring(make);
+      std::string modelstring(model);
+      auto eventmessage = interfaces::msg::Event();
+      eventmessage.event = "Camera Connected: " + makestring + " " + modelstring;
+      eventpublisher->publish(eventmessage);
+      RCLCPP_INFO_STREAM(this->get_logger(), "Camera Connected: " << makestring << " " << modelstring);
+      return;
+
+    }
+    void disconnect_camera(){
+      gp_camera_unref(camera);
+      auto eventmessage = interfaces::msg::Event();
+      eventmessage.event = "Camera Disconnected";
+      eventpublisher->publish(eventmessage);
+      RCLCPP_INFO_STREAM(this->get_logger(), "Camera Disconnected");
+      isCameraConnected = false;
+      return;  
     }
 
     bool get_setting_value(DataCamera *node,Camera *camera, GPContext *context, char * key, char ** value, std::string *errorstring){
@@ -175,7 +215,7 @@ class DataCamera : public rclcpp::Node
         *errorstring = "Failed to get configuration value: " + std::string(gp_port_result_as_string(ret));
         goto error;
       }
-      std::cout << val << std::endl;
+      //std::cout << val << std::endl;
       //Copy string to passed variable... not sure why this is needed, need to improve my understanding of both cstrings and pointers
       *value = strdup (val);
       return true;
@@ -548,18 +588,14 @@ class DataCamera : public rclcpp::Node
     //Timer Callbacks
     void detection_timer_callback()
     {
-      if(!isCameraConnected){
-        isCameraConnected = detect_camera();
+      if(!isCameraConnected){//TODO: once command queue is implemented, change this condition to !isCameraConnected && is queue empty.
+        connect_camera();
       }
       else{
         //Check camera is still connected
-        int retval = gp_camera_get_summary(camera,&text,timercontext);
-        if (retval == GP_ERROR_IO_USB_FIND){
-          isCameraConnected = false;
-          RCLCPP_INFO(this->get_logger(), "Camera not found");
-          auto eventmessage = interfaces::msg::Event();
-          eventmessage.event = "Camera Disconnected";
-          eventpublisher->publish(eventmessage);
+        int ret = gp_camera_get_summary(camera,&text,timercontext);
+        if (ret == GP_ERROR_IO_USB_FIND){
+          disconnect_camera();
         }
       }
     }
