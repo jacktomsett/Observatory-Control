@@ -64,6 +64,29 @@ class DataCamera : public rclcpp::Node
         std::bind(&DataCamera::sequence_cancel, this, std::placeholders::_1),
         std::bind(&DataCamera::sequence_accepted, this, std::placeholders::_1)
       );
+      //Initialise parameters
+      auto storage_param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+      storage_param_desc.description = "Dictates whether images are stored on the camera's SD card in addition to being published to the images topic.";
+      this->declare_parameter("store_on_camera",false,storage_param_desc);
+      //set up parameter callback
+      storage_param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
+      auto storage_param_cb = [this](const rclcpp::Parameter & p) {
+        RCLCPP_INFO_STREAM(this->get_logger(), "Parameter update: " << std::string(p.get_name()) << " = " << p.as_bool());
+        std::string errorstring;
+        if(this->get_parameter("store_on_camera").as_bool()){
+          if(!set_menu_setting_value(this,camera,context,"capturetarget","Memory card",&errorstring)){
+            RCLCPP_ERROR_STREAM(this->get_logger(),"Error changing image storage location to match node setting: " << errorstring);
+          }
+        }
+        else{
+          if(!set_menu_setting_value(this,camera,context,"capturetarget","Internal RAM",&errorstring)){
+            RCLCPP_ERROR_STREAM(this->get_logger(),"Error changing image storage location to match node setting: " << errorstring);
+          }
+        }
+      };
+      storage_cb_handle_ = storage_param_subscriber_->add_parameter_callback("store_on_camera", storage_param_cb);
+
+
       //Announce node start
       auto eventmessage = interfaces::msg::Event();
       eventmessage.event = "Camera Node starting";
@@ -177,7 +200,20 @@ class DataCamera : public rclcpp::Node
         return;
       }
       //TODO: Set storage location to match node parameter once it is implemented
-
+      if(this->get_parameter("store_on_camera").as_bool()){
+        if(!set_menu_setting_value(this,camera,timercontext,"capturetarget","Memory card",&errorstring)){
+          RCLCPP_INFO_STREAM(this->get_logger(), "Camera detected but error setting storage location to SD card: " << errorstring);
+          gp_camera_unref(camera);
+          isCameraConnected = false;
+        }
+      }
+      else{
+        if(!set_menu_setting_value(this,camera,timercontext,"capturetarget","Internal RAM",&errorstring)){
+          RCLCPP_INFO_STREAM(this->get_logger(), "Camera detected but error setting storage location to camera's RAM: " << errorstring);
+          gp_camera_unref(camera);
+          isCameraConnected = false;
+        }
+      }
       std::string makestring(make);
       std::string modelstring(model);
       auto eventmessage = interfaces::msg::Event();
@@ -321,12 +357,6 @@ class DataCamera : public rclcpp::Node
 	    char	*data;
 	    unsigned long size;
 
-      //set capture target to camera ram...
-      std::string errorstring;
-      bool result = set_menu_setting_value(this,camera,context,"capturetarget","Internal RAM",&errorstring);
-      if(!result){
-        std::cout << errorstring << std::endl;
-      }
 	    printf("Capturing.\n");
 
 	    /* NOP: This gets overridden in the library to /capt0000.jpg */
@@ -351,13 +381,17 @@ class DataCamera : public rclcpp::Node
 
 	    gp_file_get_data_and_size(file,(const char **)&data,&size);
 
-	    printf("Deleting.\n");
-	    ret = gp_camera_file_delete(camera, camera_file_path.folder, camera_file_path.name, context);
-	    if(ret != GP_OK){
-        std::cout << "Error deleting image from camera: " + std::string(gp_port_result_as_string(ret)) << std::endl;
+      if(!(this->get_parameter("store_on_camera").as_bool())){
+	      printf("Deleting.\n");
+	      ret = gp_camera_file_delete(camera, camera_file_path.folder, camera_file_path.name, context);
+	      if(ret != GP_OK){
+          std::cout << "Error deleting image from camera: " + std::string(gp_port_result_as_string(ret)) << std::endl;
+        }
       }
 
-      f = fopen("test.jpg", "wb");
+
+      /*
+      f = fopen("test.NEF", "wb");
 	    if (f) {
 		    ret = fwrite (data, size, 1, f);
 		    if (ret != (int)size) {
@@ -368,10 +402,11 @@ class DataCamera : public rclcpp::Node
       else{
 		    printf("  fopen test.jpg failed.\n");
       }
+      */
 	    gp_file_free(file);
     }
 
-    //  PUBLISHERS, SUBSCRIBERS, SERVICES, ACTIONS and TIMERS
+    //  PUBLISHERS, SUBSCRIBERS, SERVICES, ACTIONS, PARAMETERS and TIMERS
     rclcpp::Publisher<interfaces::msg::Placeholder>::SharedPtr imagepublisher;
     rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
@@ -380,6 +415,8 @@ class DataCamera : public rclcpp::Node
     rclcpp::Service<interfaces::srv::StringStatus>::SharedPtr qualitygetservice;
     rclcpp::Service<interfaces::srv::StringRequest>::SharedPtr qualitysetservice;
     rclcpp_action::Server<interfaces::action::Sequence>::SharedPtr sequenceaction;
+    std::shared_ptr<rclcpp::ParameterEventHandler> storage_param_subscriber_;
+    std::shared_ptr<rclcpp::ParameterCallbackHandle> storage_cb_handle_;
     rclcpp::TimerBase::SharedPtr detection_timer;
 
     //  SERVICE CALLBACKS
