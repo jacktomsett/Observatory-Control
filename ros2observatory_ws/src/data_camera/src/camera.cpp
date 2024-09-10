@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include <gphoto2/gphoto2.h>
 #include <gphoto2/gphoto2-camera.h>
 #include <gphoto2-port-result.h>
 #include <libgphoto2_functions.cpp>
@@ -263,6 +264,71 @@ class DataCamera : public rclcpp::Node
       RCLCPP_INFO_STREAM(this->get_logger(), "Publishing: " << imagemessage.image);
       imagepublisher->publish(imagemessage);
       eventpublisher->publish(eventmessage);
+
+      //Start experimenting with how to take actual images. Once that is done we can figure out
+      //how to package them into a ROS message.
+      //
+      // I see two functions in libgphoto for capturing an image. gp_camera_capture and gp_camera_capture_preview.
+      //The documentation states that the first will capture an image on the camera at the path specified in its arguments
+      //whereas the second does not store it on the camera and instead returns the image as a file.
+      //The second one sounds like it could be good, as it prevents a second function call to get the file later, although
+      //the first option is presumably more robust (could provide user with the option of wether to store to the SD card also ect.)
+      //I will experiment with both, but I will start with gp_camera_capture_preview.
+	    int ret;
+	    CameraFile *file;
+	    CameraFilePath camera_file_path;
+	    FILE 	*f;
+	    char	*data;
+	    unsigned long size;
+
+      //set capture target to camera ram...
+      std::string errorstring;
+      bool result = set_menu_setting_value(this,camera,context,"capturetarget","Internal RAM",&errorstring);
+      if(!result){
+        std::cout << errorstring << std::endl;
+      }
+	    printf("Capturing.\n");
+
+	    /* NOP: This gets overridden in the library to /capt0000.jpg */
+	    strcpy(camera_file_path.folder, "/");
+	    strcpy(camera_file_path.name, "foo.jpg");
+
+	    ret = gp_camera_capture(camera, GP_CAPTURE_IMAGE, &camera_file_path, context);
+	    if(ret != GP_OK){
+        std::cout << "Error capturing image: " + std::string(gp_port_result_as_string(ret)) << std::endl;
+      }
+
+	    printf("Pathname on the camera: %s/%s\n", camera_file_path.folder, camera_file_path.name);
+
+	    ret = gp_file_new(&file);
+	    if(ret != GP_OK){
+        std::cout << "Error initialising gp_file object: " + std::string(gp_port_result_as_string(ret)) << std::endl;
+      }
+	    ret = gp_camera_file_get(camera, camera_file_path.folder, camera_file_path.name, GP_FILE_TYPE_NORMAL, file, context);
+	    if(ret != GP_OK){
+        std::cout << "Error fetching image from camera: " + std::string(gp_port_result_as_string(ret)) << std::endl;
+      }
+
+	    gp_file_get_data_and_size(file,(const char **)&data,&size);
+
+	    printf("Deleting.\n");
+	    ret = gp_camera_file_delete(camera, camera_file_path.folder, camera_file_path.name, context);
+	    if(ret != GP_OK){
+        std::cout << "Error deleting image from camera: " + std::string(gp_port_result_as_string(ret)) << std::endl;
+      }
+
+      f = fopen("test.jpg", "wb");
+	    if (f) {
+		    ret = fwrite (data, size, 1, f);
+		    if (ret != (int)size) {
+			    printf("  fwrite size %ld, written %d\n", size, ret);
+		    }
+		    fclose(f);
+	    }
+      else{
+		    printf("  fopen test.jpg failed.\n");
+      }
+	    gp_file_free(file);
     }
 
     //  PUBLISHERS, SUBSCRIBERS, SERVICES, ACTIONS and TIMERS
