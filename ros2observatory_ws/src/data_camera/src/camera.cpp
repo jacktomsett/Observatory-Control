@@ -406,7 +406,7 @@ class DataCamera : public rclcpp::Node
       //  -Stage 1 (current): implement opencv bridge. Capture a jpeg and save it, then use cv's imread to get a MAT that can be published
       //  -Stage 2 (pending): Work out how to initialise the MAT directly from the data array without storing it first
       //  -Stage 3 (pending): Figure out Libraw to work out how to get a MAT from a raw image.
-      
+      cv_bridge::CvImagePtr cv_ptr;
       cv::Mat image = cv::imread("test.jpg");
       if(image.empty()){
         std::cout << "OpenCV could not read the image" << std::endl;
@@ -417,13 +417,14 @@ class DataCamera : public rclcpp::Node
       std::cout << "Image type: " << image.type() << std::endl;
       //Publish image
       //...initialise cv bridge
-      cv_bridge::CvImage cv_ptr;
-      sensor_msgs::msg::Image imagemessage;
+      
+      //sensor_msgs::msg::Image imagemessage;
+      //std_msgs::msg::Header header; //empty header
 
-      std_msgs::msg::Header header; //empty header
-
-      cv_ptr = cv_bridge::CvImage(header,"CV_8U",image);
-      cv_ptr.toImageMsg(imagemessage);
+      //cv_ptr = cv_bridge::toCvCopy(imagemessage);
+      //cv_ptr->image = image;
+      //cv_ptr->encoding = "bgr8";
+      //cv_ptr.toImageMsg(imagemessage);
 
 
       //auto imagemessage = interfaces::msg::DataImage();
@@ -434,7 +435,8 @@ class DataCamera : public rclcpp::Node
       auto eventmessage = interfaces::msg::Event();
       eventmessage.event = "Image Captured";
       RCLCPP_INFO_STREAM(this->get_logger(), "Publishing: image" );
-      imagepublisher->publish(imagemessage);
+      sensor_msgs::msg::Image::SharedPtr imagemessage = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", image).toImageMsg();
+      imagepublisher->publish(*imagemessage);
       eventpublisher->publish(eventmessage);
       
       

@@ -8,4 +8,4 @@ ros2observatory_ws/build/*
 ros2observatory_ws/install/*
 ros2observatory_ws/log/*
 .vscode/*
-ros2observatory_ws/test.jpg
+ros2observatory_ws/*.jpg
