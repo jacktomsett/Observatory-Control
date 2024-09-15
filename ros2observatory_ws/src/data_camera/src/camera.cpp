@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+//=====libgphoto2 includes========//
 #include <gphoto2/gphoto2.h>
 #include <gphoto2/gphoto2-camera.h>
 #include <gphoto2-port-result.h>
@@ -17,18 +18,24 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 #include "interfaces/msg/placeholder.hpp"
+#include "interfaces/msg/data_image.hpp"
 #include "interfaces/msg/event.hpp"
 #include "interfaces/srv/int_status.hpp"
 #include "interfaces/srv/int_request.hpp"
 #include "interfaces/srv/string_status.hpp"
 #include "interfaces/srv/string_request.hpp"
 #include "interfaces/action/sequence.hpp"
+#include "sensor_msgs/msg/image.hpp"
+#include <sensor_msgs/image_encodings.hpp>
+
+//========openCV includes=========//
+#include <opencv2/core/core.hpp>
+#include "cv_bridge/cv_bridge.h"
+#include <opencv2/highgui/highgui.hpp>
+
 
 using namespace std::chrono_literals;
 
-
-
-// End of functions copied from libgphoto examples
 
 class DataCamera : public rclcpp::Node
 {
@@ -39,7 +46,8 @@ class DataCamera : public rclcpp::Node
     {
       //=============== ROS Stuff==============//
       //Initialise publishers
-      imagepublisher      = this->create_publisher<interfaces::msg::Placeholder>("data_stream", 10);
+      //imagepublisher      = this->create_publisher<interfaces::msg::DataImage>("data_stream", 10);
+      imagepublisher      = this->create_publisher<sensor_msgs::msg::Image>("data_stream", 10);
       eventpublisher      = this->create_publisher<interfaces::msg::Event>("camera_events", 10);
       //Initialise services
       batteryservice      = this->create_service<interfaces::srv::IntStatus>(
@@ -91,7 +99,7 @@ class DataCamera : public rclcpp::Node
       auto eventmessage = interfaces::msg::Event();
       eventmessage.event = "Camera Node starting";
       eventpublisher->publish(eventmessage);
-
+      RCLCPP_INFO_STREAM(this->get_logger(),"Node started, waiting for camera...");
       //============ gphoto2 stuff===============//
       //Connect to camera
       context = sample_create_context();
@@ -333,13 +341,6 @@ class DataCamera : public rclcpp::Node
     
     void capture_image()
     {
-      auto imagemessage = interfaces::msg::Placeholder();
-      imagemessage.image = "Pretend this is an image";
-      auto eventmessage = interfaces::msg::Event();
-      eventmessage.event = "Image Captured";
-      RCLCPP_INFO_STREAM(this->get_logger(), "Publishing: " << imagemessage.image);
-      imagepublisher->publish(imagemessage);
-      eventpublisher->publish(eventmessage);
 
       //Start experimenting with how to take actual images. Once that is done we can figure out
       //how to package them into a ROS message.
@@ -388,10 +389,8 @@ class DataCamera : public rclcpp::Node
           std::cout << "Error deleting image from camera: " + std::string(gp_port_result_as_string(ret)) << std::endl;
         }
       }
-
-
-      /*
-      f = fopen("test.NEF", "wb");
+      
+      f = fopen("test.jpg", "wb");
 	    if (f) {
 		    ret = fwrite (data, size, 1, f);
 		    if (ret != (int)size) {
@@ -402,12 +401,49 @@ class DataCamera : public rclcpp::Node
       else{
 		    printf("  fopen test.jpg failed.\n");
       }
-      */
+      //Practising with opencv stuff...
+      //Will progress this in stages:
+      //  -Stage 1 (current): implement opencv bridge. Capture a jpeg and save it, then use cv's imread to get a MAT that can be published
+      //  -Stage 2 (pending): Work out how to initialise the MAT directly from the data array without storing it first
+      //  -Stage 3 (pending): Figure out Libraw to work out how to get a MAT from a raw image.
+      
+      cv::Mat image = cv::imread("test.jpg");
+      if(image.empty()){
+        std::cout << "OpenCV could not read the image" << std::endl;
+      }
+      //print out some information about the image...
+      std::cout << "Image size: " << image.rows << " x " << image.cols << std::endl;
+      std::cout << "Number of channels: " << image.channels() << std::endl;
+      std::cout << "Image type: " << image.type() << std::endl;
+      //Publish image
+      //...initialise cv bridge
+      cv_bridge::CvImage cv_ptr;
+      sensor_msgs::msg::Image imagemessage;
+
+      std_msgs::msg::Header header; //empty header
+
+      cv_ptr = cv_bridge::CvImage(header,"CV_8U",image);
+      cv_ptr.toImageMsg(imagemessage);
+
+
+      //auto imagemessage = interfaces::msg::DataImage();
+      //auto imagemessage = sensor_msgs::msg::Image();
+      //imagemessage.capturesettings = "Placeholder image parameters";
+      //imagemessage.image = *(cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", image).toImageMsg());
+      //imagemessage = *(cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", image).toImageMsg());
+      auto eventmessage = interfaces::msg::Event();
+      eventmessage.event = "Image Captured";
+      RCLCPP_INFO_STREAM(this->get_logger(), "Publishing: image" );
+      imagepublisher->publish(imagemessage);
+      eventpublisher->publish(eventmessage);
+      
+      
 	    gp_file_free(file);
     }
 
     //  PUBLISHERS, SUBSCRIBERS, SERVICES, ACTIONS, PARAMETERS and TIMERS
-    rclcpp::Publisher<interfaces::msg::Placeholder>::SharedPtr imagepublisher;
+    //rclcpp::Publisher<interfaces::msg::DataImage>::SharedPtr imagepublisher;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr imagepublisher;
     rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr isogetservice;

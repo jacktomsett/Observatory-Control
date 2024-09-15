@@ -15,8 +15,11 @@ include_directories(src)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(interfaces REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(cv_bridge REQUIRED)
 #find_package(GPHOTO2 REQUIRED)
 
 
@@ -24,7 +27,7 @@ find_package(rclcpp_components REQUIRED)
 # Add executables
 add_executable(camera src/camera.cpp)
 target_link_libraries(camera -lgphoto2 -lgphoto2_port)
-ament_target_dependencies(camera rclcpp rclcpp_action rclcpp_components interfaces)
+ament_target_dependencies(camera rclcpp rclcpp_action rclcpp_components interfaces OpenCV cv_bridge sensor_msgs)
 
 # Install executables
 install(TARGETS
