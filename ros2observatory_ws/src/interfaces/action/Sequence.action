@@ -1,5 +1,10 @@
 int64 length
+int64 name
 ---
 string confirmcomplete
+int64 successes
+int64 fails
 ---
 int64 current
+int64 successes
+int64 fails

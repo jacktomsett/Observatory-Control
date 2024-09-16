@@ -342,7 +342,7 @@ class DataCamera : public rclcpp::Node
       return false;
     }
     
-    void capture_image()
+    bool capture_image()
     {
 
       //Start experimenting with how to take actual images. Once that is done we can figure out
@@ -361,7 +361,6 @@ class DataCamera : public rclcpp::Node
 	    FILE 	*f;
 	    char	*data;
 	    unsigned long size;
-      int gprows,gpcols;
 
 	    printf("Capturing.\n");
 
@@ -372,30 +371,50 @@ class DataCamera : public rclcpp::Node
 	    ret = gp_camera_capture(camera, GP_CAPTURE_IMAGE, &camera_file_path, context);
 	    if(ret != GP_OK){
         std::cout << "Error capturing image: " + std::string(gp_port_result_as_string(ret)) << std::endl;
+        return false;
       }
 
 	    printf("Pathname on the camera: %s/%s\n", camera_file_path.folder, camera_file_path.name);
       ret = gp_camera_file_get_info(camera,camera_file_path.folder, camera_file_path.name, &info,context);
       if(ret != GP_OK){
         std::cout << "Error fetching info on file on camera: " + std::string(gp_port_result_as_string(ret)) << std::endl;
+        return false;
       }
+      
       printf("  file info reported flags: %d\n", info.file.fields);
       if(info.file.fields & GP_FILE_INFO_MTIME) printf("  info reported mtime: %ld\n", info.file.mtime);
       if(info.file.fields & GP_FILE_INFO_SIZE) printf("  info reported size: %ld\n", info.file.size);
       if(info.file.fields & GP_FILE_INFO_WIDTH) printf("  info reported width: %ld\n", info.file.width);
       if(info.file.fields & GP_FILE_INFO_HEIGHT) printf("  info reported height: %ld\n", info.file.height);
       if(info.file.fields & GP_FILE_INFO_TYPE) printf("  info reported type: %s\n", info.file.type);
-
+      
 
 	    ret = gp_file_new(&file);
 	    if(ret != GP_OK){
         std::cout << "Error initialising gp_file object: " + std::string(gp_port_result_as_string(ret)) << std::endl;
+        return false;
       }
 	    ret = gp_camera_file_get(camera, camera_file_path.folder, camera_file_path.name, GP_FILE_TYPE_NORMAL, file, context);
 	    if(ret != GP_OK){
         std::cout << "Error fetching image from camera: " + std::string(gp_port_result_as_string(ret)) << std::endl;
+        return false;
+      }
+      if(!(this->get_parameter("store_on_camera").as_bool())){
+	      printf("Deleting.\n");
+	      ret = gp_camera_file_delete(camera, camera_file_path.folder, camera_file_path.name, context);
+	      if(ret != GP_OK){
+          std::cout << "Error deleting image from camera: " + std::string(gp_port_result_as_string(ret)) << std::endl;
+        }
       }
 
+      cv::Mat image;
+      if(!get_mat_from_camerafile(file,info,&image)){
+        return false;
+      }
+
+
+
+      /*
 	    gp_file_get_data_and_size(file,(const char **)&data,&size);
 
       if(!(this->get_parameter("store_on_camera").as_bool())){
@@ -473,7 +492,7 @@ class DataCamera : public rclcpp::Node
       std::cout << "Image size: " << imagedirectfrommemory.rows << " x " << image.cols << std::endl;
       std::cout << "Number of channels: " << imagedirectfrommemory.channels() << std::endl;
       std::cout << "Image type: " << imagedirectfrommemory.type() << std::endl;
-      
+      */
 
 
       //Publish image
@@ -481,12 +500,32 @@ class DataCamera : public rclcpp::Node
       auto eventmessage = interfaces::msg::Event();
       eventmessage.event = "Image Captured";
       RCLCPP_INFO_STREAM(this->get_logger(), "Publishing: image" );
-      sensor_msgs::msg::Image::SharedPtr imagemessage = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", imagedirectfrommemory).toImageMsg();
+      sensor_msgs::msg::Image::SharedPtr imagemessage = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", image).toImageMsg();
       imagepublisher->publish(*imagemessage);
       eventpublisher->publish(eventmessage);
       
       
 	    gp_file_free(file);
+      return true;
+    }
+
+    bool get_mat_from_camerafile(CameraFile *file, CameraFileInfo info, cv::Mat *image)
+    {
+      //extract data from file
+      char *data;
+      unsigned long size;
+      gp_file_get_data_and_size(file,(const char **)&data,&size);
+
+      if(std::string(info.file.type) == std::string("image/jpeg")){
+        //Use opencv's image decode function
+        cv::Mat rawData( 1, size, CV_8UC1, (void*)data );
+        *image  =  cv::imdecode( rawData ,1 );
+        return true;
+      }
+      else{
+        RCLCPP_ERROR_STREAM(this->get_logger(),"Error decoding file received from camera, unrecognised file type: " << info.file.type );
+        return false;
+      }
     }
 
     //  PUBLISHERS, SUBSCRIBERS, SERVICES, ACTIONS, PARAMETERS and TIMERS
@@ -671,6 +710,8 @@ class DataCamera : public rclcpp::Node
       const auto goal = goal_handle->get_goal();
       auto feedback = std::make_shared<interfaces::action::Sequence::Feedback>();
       auto & current_image = feedback->current;
+      auto & successes = feedback->successes;
+      auto & fails = feedback->fails;
       auto exit_status = std::make_shared<interfaces::action::Sequence::Result>();
 
       for(int i = 1; (i < goal->length) && rclcpp::ok(); ++i)
@@ -685,7 +726,12 @@ class DataCamera : public rclcpp::Node
         }
 
         //Take image
-        capture_image();
+        if(capture_image()){
+          successes++;
+        }
+        else{
+          fails++;
+        }
 
         //Update feedback
         current_image++;
@@ -729,3 +775,7 @@ int main(int argc, char * argv[])
   rclcpp::shutdown();
   return 0;
 }
+
+
+
+
