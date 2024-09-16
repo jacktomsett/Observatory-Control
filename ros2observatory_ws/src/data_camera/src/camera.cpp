@@ -745,6 +745,8 @@ class DataCamera : public rclcpp::Node
       if(rclcpp::ok())
       {
         exit_status->confirmcomplete = "Sequence complete";
+        exit_status->successes = feedback->successes;
+        exit_status->fails = feedback->fails;
         goal_handle->succeed(exit_status);
         RCLCPP_INFO(this->get_logger(), "Sequence succeeded");
       }
