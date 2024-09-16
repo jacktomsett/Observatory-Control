@@ -33,6 +33,9 @@
 #include "cv_bridge/cv_bridge.h"
 #include <opencv2/highgui/highgui.hpp>
 
+//========other libraries=========//
+#include "libraw/libraw.h"
+
 
 using namespace std::chrono_literals;
 
@@ -354,9 +357,11 @@ class DataCamera : public rclcpp::Node
 	    int ret;
 	    CameraFile *file;
 	    CameraFilePath camera_file_path;
+      CameraFileInfo info;
 	    FILE 	*f;
 	    char	*data;
 	    unsigned long size;
+      int gprows,gpcols;
 
 	    printf("Capturing.\n");
 
@@ -370,6 +375,17 @@ class DataCamera : public rclcpp::Node
       }
 
 	    printf("Pathname on the camera: %s/%s\n", camera_file_path.folder, camera_file_path.name);
+      ret = gp_camera_file_get_info(camera,camera_file_path.folder, camera_file_path.name, &info,context);
+      if(ret != GP_OK){
+        std::cout << "Error fetching info on file on camera: " + std::string(gp_port_result_as_string(ret)) << std::endl;
+      }
+      printf("  file info reported flags: %d\n", info.file.fields);
+      if(info.file.fields & GP_FILE_INFO_MTIME) printf("  info reported mtime: %ld\n", info.file.mtime);
+      if(info.file.fields & GP_FILE_INFO_SIZE) printf("  info reported size: %ld\n", info.file.size);
+      if(info.file.fields & GP_FILE_INFO_WIDTH) printf("  info reported width: %ld\n", info.file.width);
+      if(info.file.fields & GP_FILE_INFO_HEIGHT) printf("  info reported height: %ld\n", info.file.height);
+      if(info.file.fields & GP_FILE_INFO_TYPE) printf("  info reported type: %s\n", info.file.type);
+
 
 	    ret = gp_file_new(&file);
 	    if(ret != GP_OK){
@@ -390,6 +406,8 @@ class DataCamera : public rclcpp::Node
         }
       }
       
+
+      
       f = fopen("test.jpg", "wb");
 	    if (f) {
 		    ret = fwrite (data, size, 1, f);
@@ -401,41 +419,69 @@ class DataCamera : public rclcpp::Node
       else{
 		    printf("  fopen test.jpg failed.\n");
       }
+      
       //Practising with opencv stuff...
       //Will progress this in stages:
-      //  -Stage 1 (current): implement opencv bridge. Capture a jpeg and save it, then use cv's imread to get a MAT that can be published
-      //  -Stage 2 (pending): Work out how to initialise the MAT directly from the data array without storing it first
+      //  -Stage 1 (complete): implement opencv bridge. Capture a jpeg and save it, then use cv's imread to get a MAT that can be published
+      //  -Stage 2 (complete): Work out how to initialise the MAT directly from the data array without storing it first
+      //  -Stage 2.5 (current): refactor current situation so that future libraw code can be neatly inserted
       //  -Stage 3 (pending): Figure out Libraw to work out how to get a MAT from a raw image.
-      cv_bridge::CvImagePtr cv_ptr;
+
+      
       cv::Mat image = cv::imread("test.jpg");
       if(image.empty()){
         std::cout << "OpenCV could not read the image" << std::endl;
       }
+      
+
+
+
+
+      //cv::Mat imagedirectfrommemory(info.file.height ,info.file.width, 16 ,data); //16 corresponds to 3 channel 8 bit. Obvioulsy some sort of check will be needed here
+      //Attempt to create cv::Mat object directly from data without saving a file first
+      //  cv::Mat has a constructor with the signature:
+      //        cv::Mat::Mat(int rows,int cols,int type,void* data,size_t step= AUTO_STEP)
+      //        where
+      //        -row,cols are the image dimensions
+      //        -type is the encoding
+      //        -data is the data, this is not copied and is just pointed to. we are responsible for cleaning it
+      //        -Number of bytes each matrix row occupies, including any padding.
+
+      //Update to research...
+      //I think the above constructor is a read herring. The data we get from libgphoto from the camerafile object is still a jpeg I belive
+      //due to the fact that the data is written directly to a file via fwrite and not some member function of camerafile. So I dont think we
+      //can initialise the cv::mat object with it using the above constructor. We need to decode the jpeg file first. Aprantly there is libjpeg
+      //which can do that (although opencv must have this functionality in it somewhere). Given that eventually we will need to be calling
+      //an external library to decode the raw data anyway this isnt actually a bad thing, we woudl just write a function that takes in the
+      //gpfile and the gpfileinfo and outputs a cv::Mat using whichever library is best suited for it. Going to develop it here before shoving
+      //it into a function
+
+      //Following lines copied from stack overflow showing how to decode jpeg data using opencv
+     // Create a Size(1, nSize) Mat object of 8-bit, single-byte elements
+      cv::Mat rawData( 1, size, CV_8UC1, (void*)data );
+      cv::Mat imagedirectfrommemory  =  cv::imdecode( rawData ,1 );      
+      //end of lines from stackoverflow
+
       //print out some information about the image...
+      std::cout << "Mat from file..." << std::endl;
       std::cout << "Image size: " << image.rows << " x " << image.cols << std::endl;
       std::cout << "Number of channels: " << image.channels() << std::endl;
       std::cout << "Image type: " << image.type() << std::endl;
-      //Publish image
-      //...initialise cv bridge
+
       
-      //sensor_msgs::msg::Image imagemessage;
-      //std_msgs::msg::Header header; //empty header
-
-      //cv_ptr = cv_bridge::toCvCopy(imagemessage);
-      //cv_ptr->image = image;
-      //cv_ptr->encoding = "bgr8";
-      //cv_ptr.toImageMsg(imagemessage);
+      std::cout << "Mat from memory..." << std::endl;
+      std::cout << "Image size: " << imagedirectfrommemory.rows << " x " << image.cols << std::endl;
+      std::cout << "Number of channels: " << imagedirectfrommemory.channels() << std::endl;
+      std::cout << "Image type: " << imagedirectfrommemory.type() << std::endl;
+      
 
 
-      //auto imagemessage = interfaces::msg::DataImage();
-      //auto imagemessage = sensor_msgs::msg::Image();
-      //imagemessage.capturesettings = "Placeholder image parameters";
-      //imagemessage.image = *(cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", image).toImageMsg());
-      //imagemessage = *(cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", image).toImageMsg());
+      //Publish image
+
       auto eventmessage = interfaces::msg::Event();
       eventmessage.event = "Image Captured";
       RCLCPP_INFO_STREAM(this->get_logger(), "Publishing: image" );
-      sensor_msgs::msg::Image::SharedPtr imagemessage = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", image).toImageMsg();
+      sensor_msgs::msg::Image::SharedPtr imagemessage = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", imagedirectfrommemory).toImageMsg();
       imagepublisher->publish(*imagemessage);
       eventpublisher->publish(eventmessage);
       
