@@ -1,5 +1,5 @@
 int64 length
-int64 name
+string name
 ---
 string confirmcomplete
 int64 successes

@@ -50,7 +50,7 @@ class DataCamera : public rclcpp::Node
       //=============== ROS Stuff==============//
       //Initialise publishers
       //imagepublisher      = this->create_publisher<interfaces::msg::DataImage>("data_stream", 10);
-      imagepublisher      = this->create_publisher<sensor_msgs::msg::Image>("data_stream", 10);
+      imagepublisher      = this->create_publisher<interfaces::msg::DataImage>("data_stream", 10);
       eventpublisher      = this->create_publisher<interfaces::msg::Event>("camera_events", 10);
       //Initialise services
       batteryservice      = this->create_service<interfaces::srv::IntStatus>(
@@ -342,7 +342,7 @@ class DataCamera : public rclcpp::Node
       return false;
     }
     
-    bool capture_image()
+    bool capture_image(int number, std::string sequencename)
     {
 
       //Start experimenting with how to take actual images. Once that is done we can figure out
@@ -362,7 +362,7 @@ class DataCamera : public rclcpp::Node
 	    char	*data;
 	    unsigned long size;
 
-	    printf("Capturing.\n");
+	    //printf("Capturing.\n");
 
 	    /* NOP: This gets overridden in the library to /capt0000.jpg */
 	    strcpy(camera_file_path.folder, "/");
@@ -374,20 +374,21 @@ class DataCamera : public rclcpp::Node
         return false;
       }
 
-	    printf("Pathname on the camera: %s/%s\n", camera_file_path.folder, camera_file_path.name);
+	    //printf("Pathname on the camera: %s/%s\n", camera_file_path.folder, camera_file_path.name);
       ret = gp_camera_file_get_info(camera,camera_file_path.folder, camera_file_path.name, &info,context);
       if(ret != GP_OK){
         std::cout << "Error fetching info on file on camera: " + std::string(gp_port_result_as_string(ret)) << std::endl;
         return false;
       }
       
+      /*
       printf("  file info reported flags: %d\n", info.file.fields);
       if(info.file.fields & GP_FILE_INFO_MTIME) printf("  info reported mtime: %ld\n", info.file.mtime);
       if(info.file.fields & GP_FILE_INFO_SIZE) printf("  info reported size: %ld\n", info.file.size);
       if(info.file.fields & GP_FILE_INFO_WIDTH) printf("  info reported width: %ld\n", info.file.width);
       if(info.file.fields & GP_FILE_INFO_HEIGHT) printf("  info reported height: %ld\n", info.file.height);
       if(info.file.fields & GP_FILE_INFO_TYPE) printf("  info reported type: %s\n", info.file.type);
-      
+      */
 
 	    ret = gp_file_new(&file);
 	    if(ret != GP_OK){
@@ -400,19 +401,12 @@ class DataCamera : public rclcpp::Node
         return false;
       }
       if(!(this->get_parameter("store_on_camera").as_bool())){
-	      printf("Deleting.\n");
+	      //printf("Deleting.\n");
 	      ret = gp_camera_file_delete(camera, camera_file_path.folder, camera_file_path.name, context);
 	      if(ret != GP_OK){
           std::cout << "Error deleting image from camera: " + std::string(gp_port_result_as_string(ret)) << std::endl;
         }
       }
-
-      cv::Mat image;
-      if(!get_mat_from_camerafile(file,info,&image)){
-        return false;
-      }
-
-
 
       /*
 	    gp_file_get_data_and_size(file,(const char **)&data,&size);
@@ -476,7 +470,7 @@ class DataCamera : public rclcpp::Node
       //it into a function
 
       //Following lines copied from stack overflow showing how to decode jpeg data using opencv
-     // Create a Size(1, nSize) Mat object of 8-bit, single-byte elements
+      // Create a Size(1, nSize) Mat object of 8-bit, single-byte elements
       cv::Mat rawData( 1, size, CV_8UC1, (void*)data );
       cv::Mat imagedirectfrommemory  =  cv::imdecode( rawData ,1 );      
       //end of lines from stackoverflow
@@ -500,7 +494,14 @@ class DataCamera : public rclcpp::Node
       auto eventmessage = interfaces::msg::Event();
       eventmessage.event = "Image Captured";
       RCLCPP_INFO_STREAM(this->get_logger(), "Publishing: image" );
-      sensor_msgs::msg::Image::SharedPtr imagemessage = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", image).toImageMsg();
+      interfaces::msg::DataImage::SharedPtr imagemessage;
+      if(!get_msg_from_camerafile(file,info,imagemessage)){
+        return false;
+      }
+
+
+      imagemessage->sequencename = sequencename;
+      imagemessage->sequencenumber = number;
       imagepublisher->publish(*imagemessage);
       eventpublisher->publish(eventmessage);
       
@@ -509,7 +510,7 @@ class DataCamera : public rclcpp::Node
       return true;
     }
 
-    bool get_mat_from_camerafile(CameraFile *file, CameraFileInfo info, cv::Mat *image)
+    bool get_msg_from_camerafile(CameraFile *file, CameraFileInfo info, interfaces::msg::DataImage::SharedPtr imagemessage)
     {
       //extract data from file
       char *data;
@@ -519,8 +520,32 @@ class DataCamera : public rclcpp::Node
       if(std::string(info.file.type) == std::string("image/jpeg")){
         //Use opencv's image decode function
         cv::Mat rawData( 1, size, CV_8UC1, (void*)data );
-        *image  =  cv::imdecode( rawData ,1 );
+        cv::Mat image  =  cv::imdecode( rawData ,1 );
+        cv_bridge::CvImage cv_image = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", image);
+        cv_image.toImageMsg(imagemessage->image);
         return true;
+      }
+      else if(std::string(info.file.type) == std::string("image/NEF")){   //TODO: Check this is the right string for NEFS
+        //Use libraw to convert image
+        LibRaw iProcessor;  //TODO: Would be nice if we could have this be a class member that gets initialised when the first raw image is detected
+        iProcessor.open_buffer(data,(size_t) size); //TODO: Dont think this is a valid conversion (int to size_t)
+        iProcessor.unpack();
+        // Convert from imgdata.rawdata to imgdata.image:
+        iProcessor.raw2image();
+
+        // And let us print its dump; the data are accessible through data fields of the class
+        for(i = 0;i lt; iProcessor.imgdata.sizes.iwidth *  iProcessor.imgdata.sizes.iheight; i++)
+           printf("i=%d R=%d G=%d B=%d G2=%d\n",
+                        i,
+                        iProcessor.imgdata.image[i][0],
+                        iProcessor.imgdata.image[i][1],
+                        iProcessor.imgdata.image[i][2],
+                        iProcessor.imgdata.image[i][3]
+                );
+
+        // Finally, let us free the image processor for work with the next image
+        iProcessor.recycle();
+
       }
       else{
         RCLCPP_ERROR_STREAM(this->get_logger(),"Error decoding file received from camera, unrecognised file type: " << info.file.type );
@@ -530,7 +555,7 @@ class DataCamera : public rclcpp::Node
 
     //  PUBLISHERS, SUBSCRIBERS, SERVICES, ACTIONS, PARAMETERS and TIMERS
     //rclcpp::Publisher<interfaces::msg::DataImage>::SharedPtr imagepublisher;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr imagepublisher;
+    rclcpp::Publisher<interfaces::msg::DataImage>::SharedPtr imagepublisher;
     rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr isogetservice;
@@ -678,7 +703,7 @@ class DataCamera : public rclcpp::Node
       std::shared_ptr<const interfaces::action::Sequence::Goal> goal
     )
     {
-      RCLCPP_INFO(this->get_logger(), "Received request for sequence of %d", goal->length);
+      RCLCPP_INFO_STREAM(this->get_logger(), "Received request for sequence '" << goal->name << "' consisting of " << goal->length << " images");
       (void)uuid;
       return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
     }//This has been copied from tutorial, and just accepts all goals. Obviously the camera cannot take two sequences
@@ -706,7 +731,6 @@ class DataCamera : public rclcpp::Node
     void sequence_execute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goal_handle)
     {
       RCLCPP_INFO(this->get_logger(), "Executing sequence");
-      rclcpp::Rate loop_rate(1);
       const auto goal = goal_handle->get_goal();
       auto feedback = std::make_shared<interfaces::action::Sequence::Feedback>();
       auto & current_image = feedback->current;
@@ -714,7 +738,7 @@ class DataCamera : public rclcpp::Node
       auto & fails = feedback->fails;
       auto exit_status = std::make_shared<interfaces::action::Sequence::Result>();
 
-      for(int i = 1; (i < goal->length) && rclcpp::ok(); ++i)
+      for(int i = 1; (i < goal->length) && rclcpp::ok(); i++)
       {
         //Check if there is a cancel request...
         if (goal_handle->is_canceling())
@@ -726,7 +750,7 @@ class DataCamera : public rclcpp::Node
         }
 
         //Take image
-        if(capture_image()){
+        if(capture_image(current_image,goal->name)){
           successes++;
         }
         else{
@@ -738,7 +762,6 @@ class DataCamera : public rclcpp::Node
         goal_handle->publish_feedback(feedback);
         RCLCPP_INFO(this->get_logger(), "Published Feedback");
 
-        loop_rate.sleep();
       }
 
       //Check if goal is done
