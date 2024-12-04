@@ -1,11 +1,8 @@
 CaptureSettingsCalculator/a.out
 libcurl-testing/a.out
 libcurl-testing/main
-ros2_ws/build/*
-ros2_ws/install/*
-ros2_ws/log/*
-ros2observatory_ws/build/*
-ros2observatory_ws/install/*
-ros2observatory_ws/log/*
+build/*
+install/*
+log/*
+*.jpg
 .vscode/*
-ros2observatory_ws/*.jpg
