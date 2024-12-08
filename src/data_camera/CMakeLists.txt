@@ -30,11 +30,15 @@ target_link_libraries(camera -lgphoto2 -lgphoto2_port -lraw_r)
 ament_target_dependencies(camera rclcpp rclcpp_action rclcpp_components interfaces OpenCV cv_bridge sensor_msgs)
 add_executable(subscriber src/image_subscriber.cpp)
 ament_target_dependencies(subscriber rclcpp  rclcpp_components interfaces OpenCV cv_bridge sensor_msgs)
+add_executable(test_publisher src/image_publishing_test.cpp)
+target_link_libraries(test_publisher -lraw_r)
+ament_target_dependencies(test_publisher rclcpp  rclcpp_components interfaces OpenCV cv_bridge sensor_msgs)
 
 # Install executables
 install(TARGETS
   camera
   subscriber
+  test_publisher
   DESTINATION lib/${PROJECT_NAME})
 
 

@@ -144,49 +144,6 @@ class DataCamera : public rclcpp::Node
     
     void connect_camera()
     {
-	    /* This call will autodetect cameras, take the
-	     * first one from the list and use it. It will ignore
-	     * any others... See the *multi* examples on how to
-	     * detect and use more than the first one.
-	     */
-      /*
-      //Initialise camera variable
-      gp_camera_new (&camera);
-	    ret = gp_camera_init (camera, timercontext);
-	    if (ret != GP_OK) {
-		    gp_camera_unref(camera);
-        return false;
-	    }
-      else {
-        int ret = gp_camera_get_config (camera, &rootwidget, timercontext);
-        if(ret == GP_OK){
-          //Fetch camera make and model
-          CameraWidget *widget;
-          char *make;
-          char *model;
-          ret = gp_camera_get_single_config (camera, "manufacturer", &widget, timercontext);
-          ret = gp_widget_get_value(widget,&make);
-          ret = gp_camera_get_single_config (camera, "cameramodel", &widget, timercontext);
-          ret = gp_widget_get_value(widget,&model);
-
-          std::string makestring(make);
-          std::string modelstring(model);
-          std::string logstring = "Connected to camera: " + makestring + " " + modelstring;
-
-          RCLCPP_INFO(this->get_logger(), logstring.c_str());
-          auto eventmessage = interfaces::msg::Event();
-          eventmessage.event = "Camera Connected: " + makestring + " " + modelstring;
-          eventpublisher->publish(eventmessage);
-        }
-        else{
-          RCLCPP_INFO(this->get_logger(),"Camera detected but unable to get configuration");
-          gp_camera_unref(camera);
-          gp_widget_unref(rootwidget);
-        }
-
-        return true;
-      }
-      */
      //Initialise camera variable
       gp_camera_new(&camera);
       ret = gp_camera_init(camera, timercontext);
@@ -210,7 +167,7 @@ class DataCamera : public rclcpp::Node
         isCameraConnected = false;
         return;
       }
-      //TODO: Set storage location to match node parameter once it is implemented
+      
       if(this->get_parameter("store_on_camera").as_bool()){
         if(!set_menu_setting_value(this,camera,timercontext,"capturetarget","Memory card",&errorstring)){
           RCLCPP_INFO_STREAM(this->get_logger(), "Camera detected but error setting storage location to SD card: " << errorstring);
@@ -534,6 +491,7 @@ class DataCamera : public rclcpp::Node
         iProcessor.raw2image();
 
         // And let us print its dump; the data are accessible through data fields of the class
+        /*
         for(i = 0;i lt; iProcessor.imgdata.sizes.iwidth *  iProcessor.imgdata.sizes.iheight; i++)
            printf("i=%d R=%d G=%d B=%d G2=%d\n",
                         i,
@@ -542,7 +500,7 @@ class DataCamera : public rclcpp::Node
                         iProcessor.imgdata.image[i][2],
                         iProcessor.imgdata.image[i][3]
                 );
-
+        */
         // Finally, let us free the image processor for work with the next image
         iProcessor.recycle();
 
