@@ -18,7 +18,7 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 #include "interfaces/msg/placeholder.hpp"
-#include "interfaces/msg/data_image.hpp"
+#include "interfaces/msg/data_file.hpp"
 #include "interfaces/msg/event.hpp"
 #include "interfaces/srv/int_status.hpp"
 #include "interfaces/srv/int_request.hpp"
@@ -30,7 +30,7 @@
 
 //========openCV includes=========//
 #include <opencv2/core/core.hpp>
-#include "cv_bridge/cv_bridge.h"
+#include "cv_bridge/cv_bridge.hpp"
 #include <opencv2/highgui/highgui.hpp>
 
 //========other libraries=========//
@@ -50,7 +50,7 @@ class DataCamera : public rclcpp::Node
       //=============== ROS Stuff==============//
       //Initialise publishers
       //imagepublisher      = this->create_publisher<interfaces::msg::DataImage>("data_stream", 10);
-      imagepublisher      = this->create_publisher<interfaces::msg::DataImage>("data_stream", 10);
+      imagepublisher      = this->create_publisher<interfaces::msg::DataFile>("data_stream", 10);
       eventpublisher      = this->create_publisher<interfaces::msg::Event>("camera_events", 10);
       //Initialise services
       batteryservice      = this->create_service<interfaces::srv::IntStatus>(
@@ -316,7 +316,7 @@ class DataCamera : public rclcpp::Node
 	    CameraFilePath camera_file_path;
       CameraFileInfo info;
 	    FILE 	*f;
-	    char	*data;
+	    const char	*data;
 	    unsigned long size;
 
 	    //printf("Capturing.\n");
@@ -324,8 +324,9 @@ class DataCamera : public rclcpp::Node
 	    /* NOP: This gets overridden in the library to /capt0000.jpg */
 	    strcpy(camera_file_path.folder, "/");
 	    strcpy(camera_file_path.name, "foo.jpg");
-
+      std::cout << "Attempting Capture... ";
 	    ret = gp_camera_capture(camera, GP_CAPTURE_IMAGE, &camera_file_path, context);
+      std::cout << "Capture function complete" << std::endl;
 	    if(ret != GP_OK){
         std::cout << "Error capturing image: " + std::string(gp_port_result_as_string(ret)) << std::endl;
         return false;
@@ -451,69 +452,51 @@ class DataCamera : public rclcpp::Node
       auto eventmessage = interfaces::msg::Event();
       eventmessage.event = "Image Captured";
       RCLCPP_INFO_STREAM(this->get_logger(), "Publishing: image" );
-      interfaces::msg::DataImage::SharedPtr imagemessage;
-      if(!get_msg_from_camerafile(file,info,imagemessage)){
+      interfaces::msg::DataFile::SharedPtr imagemessage;
+      std::cout << "Allocated pointer for image message" << std::endl;
+      //if(!get_msg_from_camerafile(file,info,imagemessage)){
+      //  return false;
+      //}
+      std::cout << "Extracting data from camera file...";
+      ret = gp_file_get_data_and_size(file,&data,&size);
+      std::cout << "Data extraction function complete" << std::endl;
+	    if(ret != GP_OK){
+        std::cout << "Error getting data from camerafile object: " + std::string(gp_port_result_as_string(ret)) << std::endl;
         return false;
       }
 
-
+      std::cout << "Building file message..." << std::endl;
+      imagemessage->file = *data;
+      std::cout << "Added data" << std::endl;
+      imagemessage->extension = "NEF"; //TODO: Get this from libgphoto (see above commented code)
+      std::cout << "Added extension" << std::endl;
       imagemessage->sequencename = sequencename;
+      std::cout << "Added sequence name" << std::endl;
       imagemessage->sequencenumber = number;
+      std::cout << "Added sequence number" << std::endl;
       imagepublisher->publish(*imagemessage);
       eventpublisher->publish(eventmessage);
-      
+             
       
 	    gp_file_free(file);
       return true;
     }
 
-    bool get_msg_from_camerafile(CameraFile *file, CameraFileInfo info, interfaces::msg::DataImage::SharedPtr imagemessage)
+    bool get_msg_from_camerafile(CameraFile *file, CameraFileInfo info, interfaces::msg::DataFile::SharedPtr imagemessage)
     {
-      //extract data from file
-      char *data;
-      unsigned long size;
-      gp_file_get_data_and_size(file,(const char **)&data,&size);
+      //TODO:Fille out this entire function, for now I just want to spin something up quickly.
+      //if(std::string(info.file.type) == std::string("image/NEF")) 
+      std::cout << "Entered get_msg_from_camerafile function" << std::endl;
+      const char** data;
+      unsigned long* size;
 
-      if(std::string(info.file.type) == std::string("image/jpeg")){
-        //Use opencv's image decode function
-        cv::Mat rawData( 1, size, CV_8UC1, (void*)data );
-        cv::Mat image  =  cv::imdecode( rawData ,1 );
-        cv_bridge::CvImage cv_image = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", image);
-        cv_image.toImageMsg(imagemessage->image);
-        return true;
-      }
-      else if(std::string(info.file.type) == std::string("image/NEF")){   //TODO: Check this is the right string for NEFS
-        //Use libraw to convert image
-        LibRaw iProcessor;  //TODO: Would be nice if we could have this be a class member that gets initialised when the first raw image is detected
-        iProcessor.open_buffer(data,(size_t) size); //TODO: Dont think this is a valid conversion (int to size_t)
-        iProcessor.unpack();
-        // Convert from imgdata.rawdata to imgdata.image:
-        iProcessor.raw2image();
 
-        // And let us print its dump; the data are accessible through data fields of the class
-        /*
-        for(i = 0;i lt; iProcessor.imgdata.sizes.iwidth *  iProcessor.imgdata.sizes.iheight; i++)
-           printf("i=%d R=%d G=%d B=%d G2=%d\n",
-                        i,
-                        iProcessor.imgdata.image[i][0],
-                        iProcessor.imgdata.image[i][1],
-                        iProcessor.imgdata.image[i][2],
-                        iProcessor.imgdata.image[i][3]
-                );
-        */
-        // Finally, let us free the image processor for work with the next image
-        iProcessor.recycle();
-
-      }
-      else{
-        RCLCPP_ERROR_STREAM(this->get_logger(),"Error decoding file received from camera, unrecognised file type: " << info.file.type );
-        return false;
-      }
+      return true; //TODO: Do actual error checking
     }
 
     //  PUBLISHERS, SUBSCRIBERS, SERVICES, ACTIONS, PARAMETERS and TIMERS
     //rclcpp::Publisher<interfaces::msg::DataImage>::SharedPtr imagepublisher;
-    rclcpp::Publisher<interfaces::msg::DataImage>::SharedPtr imagepublisher;
+    rclcpp::Publisher<interfaces::msg::DataFile>::SharedPtr imagepublisher;
     rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr isogetservice;

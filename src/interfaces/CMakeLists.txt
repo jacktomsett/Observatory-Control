@@ -22,6 +22,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Placeholder.msg"
   "msg/DataImage.msg"
   "action/Sequence.action"
+  "msg/DataFile.msg"
   DEPENDENCIES sensor_msgs
 )
 
