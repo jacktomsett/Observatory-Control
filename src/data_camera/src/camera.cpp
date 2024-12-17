@@ -18,7 +18,7 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 #include "interfaces/msg/placeholder.hpp"
-#include "interfaces/msg/data_file.hpp"
+#include "interfaces/msg/data_image.hpp"
 #include "interfaces/msg/event.hpp"
 #include "interfaces/srv/int_status.hpp"
 #include "interfaces/srv/int_request.hpp"
@@ -49,8 +49,8 @@ class DataCamera : public rclcpp::Node
     {
       //=============== ROS Stuff==============//
       //Initialise publishers
-      //imagepublisher      = this->create_publisher<interfaces::msg::DataImage>("data_stream", 10);
-      imagepublisher      = this->create_publisher<interfaces::msg::DataFile>("data_stream", 10);
+      imagepublisher      = this->create_publisher<interfaces::msg::DataImage>("data_stream", 10);
+      //imagepublisher      = this->create_publisher<interfaces::msg::DataFile>("data_stream", 10);
       eventpublisher      = this->create_publisher<interfaces::msg::Event>("camera_events", 10);
       //Initialise services
       batteryservice      = this->create_service<interfaces::srv::IntStatus>(
@@ -76,26 +76,37 @@ class DataCamera : public rclcpp::Node
         std::bind(&DataCamera::sequence_accepted, this, std::placeholders::_1)
       );
       //Initialise parameters
-      auto storage_param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-      storage_param_desc.description = "Dictates whether images are stored on the camera's SD card in addition to being published to the images topic.";
-      this->declare_parameter("store_on_camera",false,storage_param_desc);
+      // Store on camera parameter
+      auto store_on_camera_param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+      store_on_camera_param_desc.description = "Dictates whether images are stored on the camera's SD card";
+      this->declare_parameter("store_on_camera",true,store_on_camera_param_desc);
       //set up parameter callback
-      storage_param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
-      auto storage_param_cb = [this](const rclcpp::Parameter & p) {
+      store_on_camera_param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
+      auto store_on_camera_param_cb = [this](const rclcpp::Parameter & p) {
         RCLCPP_INFO_STREAM(this->get_logger(), "Parameter update: " << std::string(p.get_name()) << " = " << p.as_bool());
         std::string errorstring;
-        if(this->get_parameter("store_on_camera").as_bool()){
-          if(!set_menu_setting_value(this,camera,context,"capturetarget","Memory card",&errorstring)){
-            RCLCPP_ERROR_STREAM(this->get_logger(),"Error changing image storage location to match node setting: " << errorstring);
+        if(isCameraConnected) {
+          if(this->get_parameter("store_on_camera").as_bool()){
+            if(!set_menu_setting_value(this,camera,context,"capturetarget","Memory card",&errorstring)){
+              RCLCPP_ERROR_STREAM(this->get_logger(),"Error changing image storage location to match node setting: " << errorstring);
+            }
           }
-        }
-        else{
-          if(!set_menu_setting_value(this,camera,context,"capturetarget","Internal RAM",&errorstring)){
-            RCLCPP_ERROR_STREAM(this->get_logger(),"Error changing image storage location to match node setting: " << errorstring);
+          else{
+            if(!set_menu_setting_value(this,camera,context,"capturetarget","Internal RAM",&errorstring)){
+              RCLCPP_ERROR_STREAM(this->get_logger(),"Error changing image storage location to match node setting: " << errorstring);
+            }
           }
         }
       };
-      storage_cb_handle_ = storage_param_subscriber_->add_parameter_callback("store_on_camera", storage_param_cb);
+      store_on_camera_param_cb_handle_ = store_on_camera_param_subscriber_->add_parameter_callback("store_on_camera", store_on_camera_param_cb);
+      // Store on node parameter
+      auto store_on_node_param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+      store_on_node_param_desc.description = "Dictates whether images are stored on the filesystem of the camera node";
+      this->declare_parameter("store_on_node",true,store_on_node_param_desc);
+      // Publish parameter
+      auto publish_param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+      publish_param_desc.description = "Dictates whether images are published on the data_stream topic";
+      this->declare_parameter("publish_images",true,publish_param_desc);
 
 
       //Announce node start
@@ -136,9 +147,11 @@ class DataCamera : public rclcpp::Node
 
     GPContext   *timercontext;
     CameraWidget *rootwidget;
-    
+    CameraFile *file;
+
+    //node state flags
     bool isCameraConnected;
-    
+    std::string datapath = "/home/jack/Pictures/";
     
     //  HELPER FUNCTIONS
     
@@ -299,25 +312,12 @@ class DataCamera : public rclcpp::Node
       return false;
     }
     
-    bool capture_image(int number, std::string sequencename)
+    bool capture_image(CameraFile **file)
     {
 
-      //Start experimenting with how to take actual images. Once that is done we can figure out
-      //how to package them into a ROS message.
-      //
-      // I see two functions in libgphoto for capturing an image. gp_camera_capture and gp_camera_capture_preview.
-      //The documentation states that the first will capture an image on the camera at the path specified in its arguments
-      //whereas the second does not store it on the camera and instead returns the image as a file.
-      //The second one sounds like it could be good, as it prevents a second function call to get the file later, although
-      //the first option is presumably more robust (could provide user with the option of wether to store to the SD card also ect.)
-      //I will experiment with both, but I will start with gp_camera_capture_preview.
 	    int ret;
-	    CameraFile *file;
 	    CameraFilePath camera_file_path;
       CameraFileInfo info;
-	    FILE 	*f;
-	    const char	*data;
-	    unsigned long size;
 
 	    //printf("Capturing.\n");
 
@@ -339,21 +339,12 @@ class DataCamera : public rclcpp::Node
         return false;
       }
       
-      /*
-      printf("  file info reported flags: %d\n", info.file.fields);
-      if(info.file.fields & GP_FILE_INFO_MTIME) printf("  info reported mtime: %ld\n", info.file.mtime);
-      if(info.file.fields & GP_FILE_INFO_SIZE) printf("  info reported size: %ld\n", info.file.size);
-      if(info.file.fields & GP_FILE_INFO_WIDTH) printf("  info reported width: %ld\n", info.file.width);
-      if(info.file.fields & GP_FILE_INFO_HEIGHT) printf("  info reported height: %ld\n", info.file.height);
-      if(info.file.fields & GP_FILE_INFO_TYPE) printf("  info reported type: %s\n", info.file.type);
-      */
-
-	    ret = gp_file_new(&file);
+	    ret = gp_file_new(file);
 	    if(ret != GP_OK){
         std::cout << "Error initialising gp_file object: " + std::string(gp_port_result_as_string(ret)) << std::endl;
         return false;
       }
-	    ret = gp_camera_file_get(camera, camera_file_path.folder, camera_file_path.name, GP_FILE_TYPE_NORMAL, file, context);
+	    ret = gp_camera_file_get(camera, camera_file_path.folder, camera_file_path.name, GP_FILE_TYPE_NORMAL, *file, context);
 	    if(ret != GP_OK){
         std::cout << "Error fetching image from camera: " + std::string(gp_port_result_as_string(ret)) << std::endl;
         return false;
@@ -366,137 +357,26 @@ class DataCamera : public rclcpp::Node
         }
       }
 
-      /*
-	    gp_file_get_data_and_size(file,(const char **)&data,&size);
-
-      if(!(this->get_parameter("store_on_camera").as_bool())){
-	      printf("Deleting.\n");
-	      ret = gp_camera_file_delete(camera, camera_file_path.folder, camera_file_path.name, context);
-	      if(ret != GP_OK){
-          std::cout << "Error deleting image from camera: " + std::string(gp_port_result_as_string(ret)) << std::endl;
-        }
-      }
-      
-
-      
-      f = fopen("test.jpg", "wb");
-	    if (f) {
-		    ret = fwrite (data, size, 1, f);
-		    if (ret != (int)size) {
-			    printf("  fwrite size %ld, written %d\n", size, ret);
-		    }
-		    fclose(f);
-	    }
-      else{
-		    printf("  fopen test.jpg failed.\n");
-      }
-      
-      //Practising with opencv stuff...
-      //Will progress this in stages:
-      //  -Stage 1 (complete): implement opencv bridge. Capture a jpeg and save it, then use cv's imread to get a MAT that can be published
-      //  -Stage 2 (complete): Work out how to initialise the MAT directly from the data array without storing it first
-      //  -Stage 2.5 (current): refactor current situation so that future libraw code can be neatly inserted
-      //  -Stage 3 (pending): Figure out Libraw to work out how to get a MAT from a raw image.
-
-      
-      cv::Mat image = cv::imread("test.jpg");
-      if(image.empty()){
-        std::cout << "OpenCV could not read the image" << std::endl;
-      }
-      
-
-
-
-
-      //cv::Mat imagedirectfrommemory(info.file.height ,info.file.width, 16 ,data); //16 corresponds to 3 channel 8 bit. Obvioulsy some sort of check will be needed here
-      //Attempt to create cv::Mat object directly from data without saving a file first
-      //  cv::Mat has a constructor with the signature:
-      //        cv::Mat::Mat(int rows,int cols,int type,void* data,size_t step= AUTO_STEP)
-      //        where
-      //        -row,cols are the image dimensions
-      //        -type is the encoding
-      //        -data is the data, this is not copied and is just pointed to. we are responsible for cleaning it
-      //        -Number of bytes each matrix row occupies, including any padding.
-
-      //Update to research...
-      //I think the above constructor is a read herring. The data we get from libgphoto from the camerafile object is still a jpeg I belive
-      //due to the fact that the data is written directly to a file via fwrite and not some member function of camerafile. So I dont think we
-      //can initialise the cv::mat object with it using the above constructor. We need to decode the jpeg file first. Aprantly there is libjpeg
-      //which can do that (although opencv must have this functionality in it somewhere). Given that eventually we will need to be calling
-      //an external library to decode the raw data anyway this isnt actually a bad thing, we woudl just write a function that takes in the
-      //gpfile and the gpfileinfo and outputs a cv::Mat using whichever library is best suited for it. Going to develop it here before shoving
-      //it into a function
-
-      //Following lines copied from stack overflow showing how to decode jpeg data using opencv
-      // Create a Size(1, nSize) Mat object of 8-bit, single-byte elements
-      cv::Mat rawData( 1, size, CV_8UC1, (void*)data );
-      cv::Mat imagedirectfrommemory  =  cv::imdecode( rawData ,1 );      
-      //end of lines from stackoverflow
-
-      //print out some information about the image...
-      std::cout << "Mat from file..." << std::endl;
-      std::cout << "Image size: " << image.rows << " x " << image.cols << std::endl;
-      std::cout << "Number of channels: " << image.channels() << std::endl;
-      std::cout << "Image type: " << image.type() << std::endl;
-
-      
-      std::cout << "Mat from memory..." << std::endl;
-      std::cout << "Image size: " << imagedirectfrommemory.rows << " x " << image.cols << std::endl;
-      std::cout << "Number of channels: " << imagedirectfrommemory.channels() << std::endl;
-      std::cout << "Image type: " << imagedirectfrommemory.type() << std::endl;
-      */
-
-
-      //Publish image
-
-      auto eventmessage = interfaces::msg::Event();
-      eventmessage.event = "Image Captured";
-      RCLCPP_INFO_STREAM(this->get_logger(), "Publishing: image" );
-      interfaces::msg::DataFile::SharedPtr imagemessage;
-      std::cout << "Allocated pointer for image message" << std::endl;
-      //if(!get_msg_from_camerafile(file,info,imagemessage)){
-      //  return false;
-      //}
-      std::cout << "Extracting data from camera file...";
-      ret = gp_file_get_data_and_size(file,&data,&size);
-      std::cout << "Data extraction function complete" << std::endl;
-	    if(ret != GP_OK){
-        std::cout << "Error getting data from camerafile object: " + std::string(gp_port_result_as_string(ret)) << std::endl;
-        return false;
-      }
-
-      std::cout << "Building file message..." << std::endl;
-      imagemessage->file = *data;
-      std::cout << "Added data" << std::endl;
-      imagemessage->extension = "NEF"; //TODO: Get this from libgphoto (see above commented code)
-      std::cout << "Added extension" << std::endl;
-      imagemessage->sequencename = sequencename;
-      std::cout << "Added sequence name" << std::endl;
-      imagemessage->sequencenumber = number;
-      std::cout << "Added sequence number" << std::endl;
-      imagepublisher->publish(*imagemessage);
-      eventpublisher->publish(eventmessage);
-             
-      
-	    gp_file_free(file);
       return true;
     }
+    bool store_image(CameraFile* file, std::string sequencename, int sequencenumber, int sequencelength){
+      std::string filename = datapath + sequencename + "-" + std::to_string(sequencenumber) + "." + "NEF"; //TODO: Use sequence length to pad the image number in the file name and use libgphoto to get the file extension
+      int ret = gp_file_save(file, filename.c_str());
+      if (ret != GP_OK){
+        RCLCPP_ERROR_STREAM(this->get_logger(),"Error saving file to node: " + std::string(gp_port_result_as_string(ret)));
+        return false;
+      }
+      return true;
+    }
+    bool publish_image(CameraFile *file, std::string sequencename, int sequencenumber){
+      //TODO: Implement this function
+      return true;
 
-    bool get_msg_from_camerafile(CameraFile *file, CameraFileInfo info, interfaces::msg::DataFile::SharedPtr imagemessage)
-    {
-      //TODO:Fille out this entire function, for now I just want to spin something up quickly.
-      //if(std::string(info.file.type) == std::string("image/NEF")) 
-      std::cout << "Entered get_msg_from_camerafile function" << std::endl;
-      const char** data;
-      unsigned long* size;
-
-
-      return true; //TODO: Do actual error checking
     }
 
     //  PUBLISHERS, SUBSCRIBERS, SERVICES, ACTIONS, PARAMETERS and TIMERS
-    //rclcpp::Publisher<interfaces::msg::DataImage>::SharedPtr imagepublisher;
-    rclcpp::Publisher<interfaces::msg::DataFile>::SharedPtr imagepublisher;
+    rclcpp::Publisher<interfaces::msg::DataImage>::SharedPtr imagepublisher;
+    //rclcpp::Publisher<interfaces::msg::DataFile>::SharedPtr imagepublisher;
     rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr isogetservice;
@@ -504,8 +384,12 @@ class DataCamera : public rclcpp::Node
     rclcpp::Service<interfaces::srv::StringStatus>::SharedPtr qualitygetservice;
     rclcpp::Service<interfaces::srv::StringRequest>::SharedPtr qualitysetservice;
     rclcpp_action::Server<interfaces::action::Sequence>::SharedPtr sequenceaction;
-    std::shared_ptr<rclcpp::ParameterEventHandler> storage_param_subscriber_;
-    std::shared_ptr<rclcpp::ParameterCallbackHandle> storage_cb_handle_;
+    std::shared_ptr<rclcpp::ParameterEventHandler> store_on_camera_param_subscriber_;
+    std::shared_ptr<rclcpp::ParameterCallbackHandle> store_on_camera_param_cb_handle_;
+    std::shared_ptr<rclcpp::ParameterEventHandler> store_on_node_param_subscriber_;
+    std::shared_ptr<rclcpp::ParameterCallbackHandle> store_on_node_param_cb_handle_;
+    std::shared_ptr<rclcpp::ParameterEventHandler> publish_param_subscriber_;
+    std::shared_ptr<rclcpp::ParameterCallbackHandle> publish_param_cb_handle_;
     rclcpp::TimerBase::SharedPtr detection_timer;
 
     //  SERVICE CALLBACKS
@@ -691,13 +575,23 @@ class DataCamera : public rclcpp::Node
         }
 
         //Take image
-        if(capture_image(current_image,goal->name)){
+        if(capture_image(&file)){
           successes++;
         }
         else{
           fails++;
         }
-
+        if(this->get_parameter("store_on_node").as_bool()){
+          if(!(store_image(file,goal->name,i,goal->length))){
+            RCLCPP_INFO_STREAM(this->get_logger(), "Error saving image to node");
+          }
+        }
+        if(this->get_parameter("publish_images").as_bool()){
+          if(!(publish_image(file,goal->name,i))){
+            RCLCPP_INFO_STREAM(this->get_logger(), "Error publishing images to data stream");
+          }
+        }
+        gp_file_free(file);
         //Update feedback
         current_image++;
         goal_handle->publish_feedback(feedback);
