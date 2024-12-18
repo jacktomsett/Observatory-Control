@@ -22,27 +22,28 @@ class DataSubscriber : public rclcpp::Node
         : Node("data_subscriber")
         {
             RCLCPP_INFO_STREAM(this->get_logger(), "Node Started");
-            datafeed = this->create_subscription<interfaces::msg::DataFile>(
+            datafeed = this->create_subscription<sensor_msgs::msg::Image>(
                 "data_stream",10,std::bind(&DataSubscriber::image_callback,this,std::placeholders::_1));
         }
 
     private:
-        rclcpp::Subscription<interfaces::msg::DataFile>::SharedPtr datafeed;
-        void image_callback(const interfaces::msg::DataFile msg)
+        rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr datafeed;
+        void image_callback(const sensor_msgs::msg::Image msg)
         {
             RCLCPP_INFO_STREAM(this->get_logger(), "Data image received");
-            /*
+            
             cv_bridge::CvImagePtr cv_ptr;
             //cv_ptr = cv_bridge::toCvCopy(msg.image, sensor_msgs::image_encodings::BGR8);
             cv_ptr = cv_bridge::toCvCopy(msg,"");
-            */
             
+            /*
             std::string filename = std::string(msg.sequencename)+std::to_string(msg.sequencenumber)+"."+std::string(msg.extension);
             std::ofstream FILE;
             FILE.open(filename);
             FILE << msg.file;
             FILE.close();
             RCLCPP_INFO_STREAM(this->get_logger(),"Saved to " << filename);
+            */
         }
 
 };

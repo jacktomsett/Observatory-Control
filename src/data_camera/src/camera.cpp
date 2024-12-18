@@ -2,6 +2,7 @@
 #include <functional>
 #include <memory>
 #include <thread>
+#include <map>
 #include <string>
 #include <string.h>
 #include <stdlib.h>
@@ -38,7 +39,12 @@
 
 
 using namespace std::chrono_literals;
-
+std::map<std::string, std::string> mimeTypeToFileExtensionMap
+{
+  {GP_MIME_JPEG,".jpg"},
+  {GP_MIME_TIFF,".tiff"},
+  {GP_MIME_NEF,".NEF"}
+};
 
 class DataCamera : public rclcpp::Node
 {
@@ -87,18 +93,23 @@ class DataCamera : public rclcpp::Node
         std::string errorstring;
         if(isCameraConnected) {
           if(this->get_parameter("store_on_camera").as_bool()){
+            std::cout << "Setting camera storage location to SD card..." << std::endl;
             if(!set_menu_setting_value(this,camera,context,"capturetarget","Memory card",&errorstring)){
               RCLCPP_ERROR_STREAM(this->get_logger(),"Error changing image storage location to match node setting: " << errorstring);
             }
+            std::cout << "Done" << std::endl;
           }
           else{
+            std::cout << "Setting camera storage location to RAM..." << std::endl;
             if(!set_menu_setting_value(this,camera,context,"capturetarget","Internal RAM",&errorstring)){
               RCLCPP_ERROR_STREAM(this->get_logger(),"Error changing image storage location to match node setting: " << errorstring);
             }
+            std::cout << "Done" << std::endl;
           }
         }
       };
       store_on_camera_param_cb_handle_ = store_on_camera_param_subscriber_->add_parameter_callback("store_on_camera", store_on_camera_param_cb);
+      /*
       // Store on node parameter
       auto store_on_node_param_desc = rcl_interfaces::msg::ParameterDescriptor{};
       store_on_node_param_desc.description = "Dictates whether images are stored on the filesystem of the camera node";
@@ -107,7 +118,7 @@ class DataCamera : public rclcpp::Node
       auto publish_param_desc = rcl_interfaces::msg::ParameterDescriptor{};
       publish_param_desc.description = "Dictates whether images are published on the data_stream topic";
       this->declare_parameter("publish_images",true,publish_param_desc);
-
+      */
 
       //Announce node start
       auto eventmessage = interfaces::msg::Event();
@@ -182,18 +193,22 @@ class DataCamera : public rclcpp::Node
       }
       
       if(this->get_parameter("store_on_camera").as_bool()){
+        std::cout << "Setting camera storage location to SD card..." << std::endl;
         if(!set_menu_setting_value(this,camera,timercontext,"capturetarget","Memory card",&errorstring)){
           RCLCPP_INFO_STREAM(this->get_logger(), "Camera detected but error setting storage location to SD card: " << errorstring);
           gp_camera_unref(camera);
           isCameraConnected = false;
         }
+        std::cout << "Done" << std::endl;
       }
       else{
+        std::cout << "Setting camera storage location to RAM..." << std::endl;
         if(!set_menu_setting_value(this,camera,timercontext,"capturetarget","Internal RAM",&errorstring)){
           RCLCPP_INFO_STREAM(this->get_logger(), "Camera detected but error setting storage location to camera's RAM: " << errorstring);
           gp_camera_unref(camera);
           isCameraConnected = false;
         }
+        std::cout << "Done" << std::endl;
       }
       std::string makestring(make);
       std::string modelstring(model);
@@ -360,34 +375,22 @@ class DataCamera : public rclcpp::Node
       return true;
     }
     bool store_image(CameraFile* file, std::string sequencename, int sequencenumber, int sequencelength){
+      
       //Get file extension
       const char ** mime_type;  //For storing gphoto mime_type string
       std::string fileExtension; //For creating the filename with
-      int ret = gp_file_get_mime_type(*file, mime_type);
+      int ret = gp_file_get_mime_type(file, mime_type);
       if( ret != GP_OK){
         RCLCPP_ERROR_STREAM(this->get_logger(),"Error determining file type: " + std::string(gp_port_result_as_string(ret)));
       }
-      switch (*mime_type){ //TODO: Implement the rest of the libgphoto mime type strings here (currently just added the ones I am likely to use)
-        case "image/jpeg":
-          fileExtension = ".jpg";
-          break;
-        case "image/tiff":
-          fileExtension = ".tiff";
-          break;
-        case "image/x-nikon-nef":
-          fileExtension = ".NEF";
-          break;
-        default:
-          RCLCPP_ERROR_STREAM(this->get_logger(),"Error unrecognised mime type: " + std::string(*mime_type));
-          return false;
-      }
 
-      std::string filename = datapath + sequencename + "-" + std::to_string(sequencenumber) + fileExtension; //TODO: Use sequence length to pad the image number in the file name
+      std::string filename = datapath + sequencename + "-" + std::to_string(sequencenumber) + mimeTypeToFileExtensionMap[std::string(*mime_type)]; //TODO: Use sequence length to pad the image number in the file name
       ret = gp_file_save(file, filename.c_str());
       if (ret != GP_OK){
         RCLCPP_ERROR_STREAM(this->get_logger(),"Error saving file to node: " + std::string(gp_port_result_as_string(ret)));
         return false;
       }
+      
       return true;
     }
     bool publish_image(CameraFile *file, std::string sequencename, int sequencenumber){
@@ -408,10 +411,12 @@ class DataCamera : public rclcpp::Node
     rclcpp_action::Server<interfaces::action::Sequence>::SharedPtr sequenceaction;
     std::shared_ptr<rclcpp::ParameterEventHandler> store_on_camera_param_subscriber_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> store_on_camera_param_cb_handle_;
+    /*
     std::shared_ptr<rclcpp::ParameterEventHandler> store_on_node_param_subscriber_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> store_on_node_param_cb_handle_;
     std::shared_ptr<rclcpp::ParameterEventHandler> publish_param_subscriber_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> publish_param_cb_handle_;
+    */
     rclcpp::TimerBase::SharedPtr detection_timer;
 
     //  SERVICE CALLBACKS
