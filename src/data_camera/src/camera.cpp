@@ -360,8 +360,30 @@ class DataCamera : public rclcpp::Node
       return true;
     }
     bool store_image(CameraFile* file, std::string sequencename, int sequencenumber, int sequencelength){
-      std::string filename = datapath + sequencename + "-" + std::to_string(sequencenumber) + "." + "NEF"; //TODO: Use sequence length to pad the image number in the file name and use libgphoto to get the file extension
-      int ret = gp_file_save(file, filename.c_str());
+      //Get file extension
+      const char ** mime_type;  //For storing gphoto mime_type string
+      std::string fileExtension; //For creating the filename with
+      int ret = gp_file_get_mime_type(*file, mime_type);
+      if( ret != GP_OK){
+        RCLCPP_ERROR_STREAM(this->get_logger(),"Error determining file type: " + std::string(gp_port_result_as_string(ret)));
+      }
+      switch (*mime_type){ //TODO: Implement the rest of the libgphoto mime type strings here (currently just added the ones I am likely to use)
+        case "image/jpeg":
+          fileExtension = ".jpg";
+          break;
+        case "image/tiff":
+          fileExtension = ".tiff";
+          break;
+        case "image/x-nikon-nef":
+          fileExtension = ".NEF";
+          break;
+        default:
+          RCLCPP_ERROR_STREAM(this->get_logger(),"Error unrecognised mime type: " + std::string(*mime_type));
+          return false;
+      }
+
+      std::string filename = datapath + sequencename + "-" + std::to_string(sequencenumber) + fileExtension; //TODO: Use sequence length to pad the image number in the file name
+      ret = gp_file_save(file, filename.c_str());
       if (ret != GP_OK){
         RCLCPP_ERROR_STREAM(this->get_logger(),"Error saving file to node: " + std::string(gp_port_result_as_string(ret)));
         return false;
