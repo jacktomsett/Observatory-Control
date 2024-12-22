@@ -34,16 +34,10 @@ class DataSubscriber : public rclcpp::Node
             
             cv_bridge::CvImagePtr cv_ptr;
             //cv_ptr = cv_bridge::toCvCopy(msg.image, sensor_msgs::image_encodings::BGR8);
-            cv_ptr = cv_bridge::toCvCopy(msg,"");
-            
-            /*
-            std::string filename = std::string(msg.sequencename)+std::to_string(msg.sequencenumber)+"."+std::string(msg.extension);
-            std::ofstream FILE;
-            FILE.open(filename);
-            FILE << msg.file;
-            FILE.close();
-            RCLCPP_INFO_STREAM(this->get_logger(),"Saved to " << filename);
-            */
+            cv_ptr = cv_bridge::toCvCopy(msg);
+
+            cv::imwrite("ReceivedImage.tiff",cv_ptr->image);
+
         }
 
 };
