@@ -109,16 +109,28 @@ class DataCamera : public rclcpp::Node
         }
       };
       store_on_camera_param_cb_handle_ = store_on_camera_param_subscriber_->add_parameter_callback("store_on_camera", store_on_camera_param_cb);
-      /*
+      
       // Store on node parameter
       auto store_on_node_param_desc = rcl_interfaces::msg::ParameterDescriptor{};
       store_on_node_param_desc.description = "Dictates whether images are stored on the filesystem of the camera node";
       this->declare_parameter("store_on_node",true,store_on_node_param_desc);
+      //set up parameter callback
+      store_on_node_param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
+      auto store_on_node_param_cb = [this](const rclcpp::Parameter & p) {
+        RCLCPP_INFO_STREAM(this->get_logger(), "Parameter update: " << std::string(p.get_name()) << " = " << p.as_bool());
+      };
+      store_on_node_param_cb_handle_ = store_on_node_param_subscriber_->add_parameter_callback("store_on_node", store_on_node_param_cb);
       // Publish parameter
       auto publish_param_desc = rcl_interfaces::msg::ParameterDescriptor{};
       publish_param_desc.description = "Dictates whether images are published on the data_stream topic";
       this->declare_parameter("publish_images",true,publish_param_desc);
-      */
+      //set up parameter callback
+      publish_param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
+      auto publish_param_cb = [this](const rclcpp::Parameter & p) {
+        RCLCPP_INFO_STREAM(this->get_logger(), "Parameter update: " << std::string(p.get_name()) << " = " << p.as_bool());
+      };
+      publish_param_cb_handle_ = publish_param_subscriber_->add_parameter_callback("publish_images", publish_param_cb);
+      
 
       //Announce node start
       auto eventmessage = interfaces::msg::Event();
@@ -340,7 +352,7 @@ class DataCamera : public rclcpp::Node
 	    strcpy(camera_file_path.folder, "/");
 	    strcpy(camera_file_path.name, "foo.jpg");
       std::cout << "Attempting Capture... ";
-	    ret = gp_camera_capture(camera, GP_CAPTURE_IMAGE, &camera_file_path, context);
+	    ret = gp_camera_capture(camera, GP_CAPTURE_IMAGE, &camera_file_path, context); //FIXME: This command hangs if the camera has been set to store the image to the camera's RAM
       std::cout << "Capture function complete" << std::endl;
 	    if(ret != GP_OK){
         std::cout << "Error capturing image: " + std::string(gp_port_result_as_string(ret)) << std::endl;
@@ -411,12 +423,10 @@ class DataCamera : public rclcpp::Node
     rclcpp_action::Server<interfaces::action::Sequence>::SharedPtr sequenceaction;
     std::shared_ptr<rclcpp::ParameterEventHandler> store_on_camera_param_subscriber_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> store_on_camera_param_cb_handle_;
-    /*
     std::shared_ptr<rclcpp::ParameterEventHandler> store_on_node_param_subscriber_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> store_on_node_param_cb_handle_;
     std::shared_ptr<rclcpp::ParameterEventHandler> publish_param_subscriber_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> publish_param_cb_handle_;
-    */
     rclcpp::TimerBase::SharedPtr detection_timer;
 
     //  SERVICE CALLBACKS
