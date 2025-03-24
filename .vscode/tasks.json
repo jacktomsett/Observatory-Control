@@ -22,6 +22,25 @@
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "type": "shell",
+            "label": "colcon: build",
+            "command": [
+                "source /opt/ros/rolling/setup.bash;",
+                "colcon build"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "colcon: clean",
+            "type": "shell",
+            "command": [
+                "cd ${workspaceFolder} && rm -rf build/ install/ log/;"
+            ],
+            "problemMatcher": []
         }
     ]
-    }
+}
