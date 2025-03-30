@@ -1,46 +1,45 @@
 {
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
     "version": "2.0.0",
     "tasks": [
+        // Build tasks
         {
+            "label": "build workspace",
+            "detail": "Build ROS 2 workspace",
             "type": "shell",
-            "label": "C/C++: g++ build active file",
-            "command": "/usr/bin/g++",
-            "args": [
-                "-g",
-                "${fileDirname}/${fileBasename}",
-                "-o",
-                "${fileDirname}/${fileBasenameNoExtension}",
-                "-lcurl",
-                "-ljsoncpp",
-                "-I",
-                "${fileDirname}"
-            ],
-            "problemMatcher": [
-                "$gcc"
-            ],
+            "command": "source /opt/ros/jazzy/setup.bash && colcon build",
             "group": {
                 "kind": "build",
                 "isDefault": true
-            }
+            },
+            "problemMatcher": "$gcc"
         },
         {
+            "label": "build single package",
+            "detail": "Build single ROS 2 package",
             "type": "shell",
-            "label": "colcon: build",
-            "command": [
-                "source /opt/ros/rolling/setup.bash;",
-                "colcon build"
-            ],
-            "problemMatcher": [
-                "$gcc"
-            ]
+            "command": "source /opt/ros/jazzy/setup.bash && colcon build --packages-select ${input:package}",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc"
         },
         {
-            "label": "colcon: clean",
+            "label": "clean workspace",
+            "detail": "Remove built coode from workspace",
             "type": "shell",
-            "command": [
-                "cd ${workspaceFolder} && rm -rf build/ install/ log/;"
-            ],
+            "command": "rm -r ${workspaceFolder}/{build,install,log}",
             "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "package",
+            "type": "promptString",
+            "description": "Package name",
+            "default": "demo_nodes_cpp"
         }
     ]
 }
