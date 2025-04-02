@@ -7,6 +7,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "interfaces/msg/event.hpp"
+#include "interfaces/srv/int_status.hpp"
 
 std::mutex queueLock;
 
@@ -18,12 +19,15 @@ class EventRequest
       priority = p;
       testname = name;
       complete = false;
+      status = false;
       eventFunctionPtr = func;
     }
 
     int priority;
     bool complete;
+    bool status;
     std::string testname;
+    std::string result;
     void execute()
     {
       std::cout << "About to hand over to event function pointer..." << std::endl;
@@ -31,16 +35,20 @@ class EventRequest
       complete = true;
     }
 
-  private:
+  protected:
     void (*eventFunctionPtr)(EventRequest*);
 
 };
+
 
 void dummyRequestFunction(EventRequest* event)
 {
   std::cout << "Entered dummyRequestedFunction" << std::endl;
   std::cout << "Event priority: " << event->priority << std::endl;
   std::cout << "Event name    : " << event->testname << std::endl;
+
+  event->result = "10000000%";
+  event->status = true;
   //Add sleep here to simulate the time that service callbacks might have to wait for
   usleep(5000);
   return;
@@ -53,7 +61,6 @@ class DataCamera : public rclcpp::Node
     : Node("data_camera")
     {
       shutdownRequest = false;
-      eventpublisher = this->create_publisher<interfaces::msg::Event>("camera_events", 10);
       batteryservice = this->create_service<interfaces::srv::IntStatus>(
         "battery_status", std::bind(&DataCamera::battery_callback, this, std::placeholders::_1, std::placeholders::_2)
       );
@@ -70,7 +77,6 @@ class DataCamera : public rclcpp::Node
     bool shutdownRequest;
     std::vector<EventRequest*> eventQueue;
     
-    rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
 
     std::thread cameraThread;
@@ -127,7 +133,21 @@ class DataCamera : public rclcpp::Node
       queueLock.unlock();
 
       while (event.complete == false){}
-            
+      if (event.status == true)
+      {
+        event.result.pop_back(); //Remove percent sign
+        response->value = std::stoi(event.result);
+        response->status = true;
+        response->description = "";
+        //RCLCPP_INFO_STREAM(this, "Responding with " << response->value);
+      }
+      else
+      {
+        response->value = 0;
+        response->status = false;
+        response->description = "Need to implement error string here";
+        //RCLCPP_INFO_STREAM(this, "Responding with fail status");
+      }
       
     }
   };
