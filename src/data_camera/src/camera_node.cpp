@@ -5,9 +5,16 @@
 
 #include "unistd.h"
 
+//ROS includes
 #include "rclcpp/rclcpp.hpp"
 #include "interfaces/msg/event.hpp"
 #include "interfaces/srv/int_status.hpp"
+
+//libgphoto includes
+//=====libgphoto2 includes========//
+#include <gphoto2/gphoto2.h>
+#include <gphoto2/gphoto2-camera.h>
+#include <gphoto2-port-result.h>
 
 std::mutex queueLock;
 

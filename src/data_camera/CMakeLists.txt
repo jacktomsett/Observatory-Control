@@ -10,7 +10,14 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(interfaces REQUIRED)
 
+# set include paths for gphoto2
+include_directories(/usr/include/gphoto2)
+# set include path for other files containing functions ect.
+include_directories(src)
+
 add_executable(camera_node src/camera_node.cpp)
+target_link_libraries(camera_node -lgphoto2 -lgphoto2_port)
+
 target_include_directories(camera_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
