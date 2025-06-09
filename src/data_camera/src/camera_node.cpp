@@ -60,23 +60,40 @@ class DataCamera : public rclcpp::Node
     DataCamera()
     : Node("data_camera")
     {
+      //Initialise variables
       shutdownRequest = false;
+      isCameraConnected = false;
+      //Initialise publishers
+      eventpublisher = this->create_publisher<interfaces::msg::Event>("camera_events", 10);
+      //Initialise services
       batteryservice = this->create_service<interfaces::srv::IntStatus>(
         "battery_status", std::bind(&DataCamera::battery_callback, this, std::placeholders::_1, std::placeholders::_2)
       );
+      //Start camera thread
       cameraThread = std::thread(&DataCamera::cameraThreadFunction,this);
+
+      //Announce node start
+      auto eventmessage = interfaces::msg::Event();
+      eventmessage.event = "Camera Node starting";
+      RCLCPP_INFO_STREAM(this->get_logger(),"Node started, waiting for camera...");
     }
     ~DataCamera()
     {
-      std::cout << "Camera node shutting down..." << std::endl;
+      auto eventmessage = interfaces::msg::Event();
+      eventmessage.event = "Camera Node shutting down";
+      RCLCPP_INFO_STREAM(this->get_logger(),"Shutdown request received");
       shutdownRequest = true;
       cameraThread.join();
     }
 
   private:
+    //State tracking variables
     bool shutdownRequest;
+    bool isCameraConnected;
     std::vector<EventRequest*> eventQueue;
     
+    //Publishers, Subscribers, Services, Actions, Parameters
+    rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
 
     std::thread cameraThread;
@@ -88,10 +105,14 @@ class DataCamera : public rclcpp::Node
 
       while(shutdownRequest == false)
       {
-        if( eventQueue.size() == 0 )
+        if( isCameraConnected == false)
+        {
+          connectToCamera();
+        }
+        else if( eventQueue.size() == 0 )
         {
           //Run keep alive command to check camera is still connected
-          keepAlive();
+          checkCameraConnection();
         }
         else
         {
@@ -106,12 +127,22 @@ class DataCamera : public rclcpp::Node
 
         }
       }
+      RCLCPP_INFO_STREAM(this->get_logger(),"Camera thread closing with " << eventQueue.size() << "events remaining in queue");
+
     }
 
-    void keepAlive()
+    void connectToCamera()
+    {
+      //TODO: dummy function, needs implementing
+      auto eventmessage = interfaces::msg::Event();
+      eventmessage.event = "Camera connected";
+      RCLCPP_INFO_STREAM(this->get_logger(),"Connected to camera");
+      isCameraConnected = true;
+    }
+    void checkCameraConnection()
     {
       //TODO: implement camera connection checks here
-      std::cout << "Event queue empty... polling camera" << std::endl;
+      RCLCPP_INFO_STREAM(this->get_logger(),"Polling camera connection");
       usleep(500000);
       
     }
@@ -122,7 +153,7 @@ class DataCamera : public rclcpp::Node
       /*Dummy callback for now just to test adding to event queue from a ros service request
           and waiting for request to complete before reporting back. Will eventually need to
           implement inserting based on priority and adding a timeout before reporting back*/
-      
+      RCLCPP_INFO_STREAM(this->get_logger(),"Received request for battery status");
       //Create event
       EventRequest event(1,"battery request",dummyRequestFunction);
 
@@ -139,14 +170,14 @@ class DataCamera : public rclcpp::Node
         response->value = std::stoi(event.result);
         response->status = true;
         response->description = "";
-        //RCLCPP_INFO_STREAM(this, "Responding with " << response->value);
+        RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->value);
       }
       else
       {
         response->value = 0;
         response->status = false;
         response->description = "Need to implement error string here";
-        //RCLCPP_INFO_STREAM(this, "Responding with fail status");
+        RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
       }
       
     }

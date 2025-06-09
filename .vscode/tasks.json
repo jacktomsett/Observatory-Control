@@ -8,7 +8,7 @@
             "label": "build workspace",
             "detail": "Build ROS 2 workspace",
             "type": "shell",
-            "command": "source /opt/ros/jazzy/setup.bash && colcon build",
+            "command": "source /opt/ros/kilted/setup.bash && colcon build",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -19,10 +19,9 @@
             "label": "build single package",
             "detail": "Build single ROS 2 package",
             "type": "shell",
-            "command": "source /opt/ros/jazzy/setup.bash && colcon build --packages-select ${input:package}",
+            "command": "source /opt/ros/kilted/setup.bash && colcon build --packages-select ${input:package}",
             "group": {
-                "kind": "build",
-                "isDefault": true
+                "kind": "build"
             },
             "problemMatcher": "$gcc"
         },
