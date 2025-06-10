@@ -180,7 +180,7 @@ class DataCamera : public rclcpp::Node
     void connectToCamera()
     {
       gp_camera_new(&cameraHandle);
-      int ret = gp_camera_init(cameraHandle,context);
+      int ret = gp_camera_init(cameraHandle,emptyContext);
       bool retval = false;
       char *make;
       char *model;
@@ -215,13 +215,26 @@ class DataCamera : public rclcpp::Node
     }
     void disconnectCamera()
     {
+      if (isCameraConnected == true)
+      {
+        auto eventmessage = interfaces::msg::Event();
+        eventmessage.event = "Camera disconnected";
+        eventpublisher->publish(eventmessage);
+        RCLCPP_INFO_STREAM(this->get_logger(),"Camera disconnected");
+      }
       isCameraConnected = false;
       gp_camera_unref(cameraHandle);
     }
     void checkCameraConnection()
     {
-      //TODO: implement camera connection checks here
-      RCLCPP_INFO_STREAM(this->get_logger(),"Polling camera connection");
+      //Attempt to fetch camera summary
+      CameraText cameraSummary;
+      int ret = gp_camera_get_summary(cameraHandle,&cameraSummary,context);
+      if(ret == GP_ERROR_IO_USB_FIND || ret == GP_ERROR_IO_USB_CLAIM)
+      {
+        disconnectCamera();
+      }
+
       usleep(500000);
       
     }
