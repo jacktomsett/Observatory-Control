@@ -5,3 +5,5 @@ build/*
 install/*
 log/*
 *.jpg
+html/*
+latex/*

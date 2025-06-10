@@ -10,5 +10,6 @@
     ],
     "files.associations": {
         "chrono": "cpp"
-    }
+    },
+    "cmake.ignoreCMakeListsMissing": true
 }
