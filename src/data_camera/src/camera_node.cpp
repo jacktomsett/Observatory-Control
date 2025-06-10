@@ -179,22 +179,39 @@ class DataCamera : public rclcpp::Node
     //Helper functions
     void connectToCamera()
     {
-      //TODO: dummy function, needs implementing
       gp_camera_new(&cameraHandle);
       int ret = gp_camera_init(cameraHandle,context);
-      if(ret == GP_OK)
+      bool retval = false;
+      char *make;
+      char *model;
+
+      if (ret == GP_OK)
       {
-        auto eventmessage = interfaces::msg::Event();
-        eventmessage.event = "Camera connected";
-        eventpublisher->publish(eventmessage);
-        RCLCPP_INFO_STREAM(this->get_logger(),"Connected to camera");
+        //Fetch make and model
+        retval = get_setting_value(cameraHandle,context,"manufacturer",&make);
+        retval += get_setting_value(cameraHandle,context,"cameramodel",&model); 
+      }
+      if(retval == true)
+      {
         isCameraConnected = true;
+        auto eventmessage = interfaces::msg::Event();
+        eventmessage.event = "Camera connected: " + std::string(make) + " " + std::string(model);
+        eventpublisher->publish(eventmessage);
+        RCLCPP_INFO_STREAM(this->get_logger(),"Camera connected: " + std::string(make) + " " + std::string(model));
+      }
+      else if(ret == GP_OK)
+      {
+        isCameraConnected = true;
+        auto eventmessage = interfaces::msg::Event();
+        eventmessage.event = "Camera connected but could not fetch make and model";
+        eventpublisher->publish(eventmessage);
+        RCLCPP_INFO_STREAM(this->get_logger(),"Camera connected but could not fetch make and model");
       }
       else
       {
         disconnectCamera();
       }
-
+      return;
     }
     void disconnectCamera()
     {
@@ -208,7 +225,7 @@ class DataCamera : public rclcpp::Node
       usleep(500000);
       
     }
-    bool get_setting_value(DataCamera *node,Camera *camera, GPContext *context, char * key, char ** value)
+    bool get_setting_value(Camera *camera, GPContext *context, char * key, char ** value)
     {
       bool returnVal = false;
       int ret = 0;
