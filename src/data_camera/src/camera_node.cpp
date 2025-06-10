@@ -74,6 +74,9 @@ class DataCamera : public rclcpp::Node
       //Initialise libgphoto contexts
       context = gp_context_new();
       gp_context_set_error_func(context,contextErrorFunction,this);
+      gp_context_set_status_func(context,contextStatusFunction,this);
+      emptyContext = gp_context_new();
+
       //Initialise publishers
       eventpublisher = this->create_publisher<interfaces::msg::Event>("camera_events", 10);
       //Initialise services
@@ -107,7 +110,8 @@ class DataCamera : public rclcpp::Node
     
     //libgphoto variables and functions
     Camera *cameraHandle;
-    GPContext *context;
+    GPContext *context; //Main context which reports to ROS info and error streams
+    GPContext *emptyContext;  //Empty context with no error reporting. Used when polling for the camera to avoid flooding the streams
     //Context functions
     static void contextErrorFunction (GPContext *context, const char *str, void *data)
     {
@@ -117,13 +121,20 @@ class DataCamera : public rclcpp::Node
       DataCamera* object = static_cast<DataCamera*> (data);
       RCLCPP_ERROR_STREAM(object->get_logger(), str);
     }
+    static void contextStatusFunction (GPContext *context, const char *str, void *data)
+    {
+      //data is used to pass in the DataCamera object that called it
+      //This is neccessary because libgphoto2 requires this function to be static
+      //TODO: might need some way to ensure only a pointer to the class object is passed
+      DataCamera* object = static_cast<DataCamera*> (data);
+      RCLCPP_INFO_STREAM(object->get_logger(), str);
+    }
     
-
-
     //Publishers, Subscribers, Services, Actions, Parameters
     rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
 
+    // Camera Thread
     std::thread cameraThread;
     void cameraThreadFunction()
     {
@@ -165,6 +176,7 @@ class DataCamera : public rclcpp::Node
 
     }
 
+    //Helper functions
     void connectToCamera()
     {
       //TODO: dummy function, needs implementing
@@ -180,9 +192,14 @@ class DataCamera : public rclcpp::Node
       }
       else
       {
-        gp_camera_unref(cameraHandle);
+        disconnectCamera();
       }
 
+    }
+    void disconnectCamera()
+    {
+      isCameraConnected = false;
+      gp_camera_unref(cameraHandle);
     }
     void checkCameraConnection()
     {
@@ -191,7 +208,35 @@ class DataCamera : public rclcpp::Node
       usleep(500000);
       
     }
+    bool get_setting_value(DataCamera *node,Camera *camera, GPContext *context, char * key, char ** value)
+    {
+      bool returnVal = false;
+      int ret = 0;
+      CameraWidget *widget;
+      char* val;
 
+      ret = gp_camera_get_single_config(camera, key, &widget, context); //Fetch the configuration widget corresponding to that setting
+      if (ret == GP_OK)
+      {
+        ret = gp_widget_get_value(widget, &val);
+      }
+      if (ret == GP_OK)
+      {
+        *value = strdup (val ); //TODO: Copied this from previous iteration which contained a note stating that it is unclear what this is or why it is needed. Still don't know so need to find out
+      }
+      if (ret == GP_OK)
+      {
+        returnVal = true;
+      }
+      else if (ret == GP_ERROR_IO_USB_FIND || ret == GP_ERROR_IO_USB_CLAIM ) //TODO: See if this can somehow be incorporated into a context or a callback within libgphoto2. Otherwise this statement will need to go everywhere
+      {
+        disconnectCamera();
+      }
+
+      return returnVal;
+    }
+
+    //Service Callbacks
     void battery_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request> request,
       std::shared_ptr<interfaces::srv::IntStatus::Response> response)
     {
