@@ -70,6 +70,10 @@ class DataCamera : public rclcpp::Node
       //Initialise variables
       shutdownRequest = false;
       isCameraConnected = false;
+
+      //Initialise libgphoto contexts
+      context = gp_context_new();
+      gp_context_set_error_func(context,contextErrorFunction,this);
       //Initialise publishers
       eventpublisher = this->create_publisher<interfaces::msg::Event>("camera_events", 10);
       //Initialise services
@@ -82,12 +86,14 @@ class DataCamera : public rclcpp::Node
       //Announce node start
       auto eventmessage = interfaces::msg::Event();
       eventmessage.event = "Camera Node starting";
-      RCLCPP_INFO_STREAM(this->get_logger(),"Node started, waiting for camera...");
+      eventpublisher->publish(eventmessage);
+      RCLCPP_INFO_STREAM(this->get_logger(),"Node started");
     }
     ~DataCamera()
     {
       auto eventmessage = interfaces::msg::Event();
       eventmessage.event = "Camera Node shutting down";
+      eventpublisher->publish(eventmessage);
       RCLCPP_INFO_STREAM(this->get_logger(),"Shutdown request received");
       shutdownRequest = true;
       cameraThread.join();
@@ -99,6 +105,21 @@ class DataCamera : public rclcpp::Node
     bool isCameraConnected;
     std::vector<EventRequest*> eventQueue;
     
+    //libgphoto variables and functions
+    Camera *cameraHandle;
+    GPContext *context;
+    //Context functions
+    static void contextErrorFunction (GPContext *context, const char *str, void *data)
+    {
+      //data is used to pass in the DataCamera object that called it
+      //This is neccessary because libgphoto2 requires this function to be static
+      //TODO: might need some way to ensure only a pointer to the class object is passed
+      DataCamera* object = static_cast<DataCamera*> (data);
+      RCLCPP_ERROR_STREAM(object->get_logger(), str);
+    }
+    
+
+
     //Publishers, Subscribers, Services, Actions, Parameters
     rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
     rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
@@ -115,6 +136,12 @@ class DataCamera : public rclcpp::Node
         if( isCameraConnected == false)
         {
           connectToCamera();
+          if (isCameraConnected == false)
+          {
+            //If camera is not connected, we need to add a delay here to avoid a hot
+            //loop in the situation where no camera is connected
+            usleep(200); //TODO: Decide whether this should be achieved with a ROS timer
+          }
         }
         else if( eventQueue.size() == 0 )
         {
@@ -134,17 +161,28 @@ class DataCamera : public rclcpp::Node
 
         }
       }
-      RCLCPP_INFO_STREAM(this->get_logger(),"Camera thread closing with " << eventQueue.size() << "events remaining in queue");
+      RCLCPP_INFO_STREAM(this->get_logger(),"Camera thread closing with " << eventQueue.size() << " events remaining in queue");
 
     }
 
     void connectToCamera()
     {
       //TODO: dummy function, needs implementing
-      auto eventmessage = interfaces::msg::Event();
-      eventmessage.event = "Camera connected";
-      RCLCPP_INFO_STREAM(this->get_logger(),"Connected to camera");
-      isCameraConnected = true;
+      gp_camera_new(&cameraHandle);
+      int ret = gp_camera_init(cameraHandle,context);
+      if(ret == GP_OK)
+      {
+        auto eventmessage = interfaces::msg::Event();
+        eventmessage.event = "Camera connected";
+        eventpublisher->publish(eventmessage);
+        RCLCPP_INFO_STREAM(this->get_logger(),"Connected to camera");
+        isCameraConnected = true;
+      }
+      else
+      {
+        gp_camera_unref(cameraHandle);
+      }
+
     }
     void checkCameraConnection()
     {
