@@ -6,7 +6,7 @@
         "limitSymbolsToIncludedHeaders": false
       },
       "includePath": [
-        "/home/jackt/Projects/Observatory-Control/install/**",
+        "/home/jackt/Projects/Observatory-Control/install/interfaces/include/**",
         "/opt/ros/kilted/include/**",
         "/usr/include/**"
       ],
