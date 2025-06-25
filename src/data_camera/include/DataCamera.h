@@ -1,6 +1,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "interfaces/msg/event.hpp"
 #include "interfaces/srv/int_status.hpp"
+#include "interfaces/srv/int_request.hpp"
 #include <gphoto2/gphoto2.h>
 #include <thread>
 #include <mutex>
@@ -32,6 +33,8 @@ class DataCamera : public rclcpp::Node
         //Publishers, Subscribers, Services, Actions, Parameters
         rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
         rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
+        rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr getisoservice;
+        rclcpp::Service<interfaces::srv::IntRequest>::SharedPtr setisoservice;
 
         //Camera Thread
         std::thread cameraThread;
@@ -44,5 +47,7 @@ class DataCamera : public rclcpp::Node
 
         //Service Callbacks
         void battery_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request>, std::shared_ptr<interfaces::srv::IntStatus::Response>);
+        void getiso_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request>, std::shared_ptr<interfaces::srv::IntStatus::Response>);
+        void setiso_callback(const std::shared_ptr<interfaces::srv::IntRequest::Request>, std::shared_ptr<interfaces::srv::IntRequest::Response>);
 
 };

@@ -21,5 +21,24 @@ class batteryRequest : public EventRequest
 {
     public:
         batteryRequest(int, std::string, DataCamera*);
+        ~batteryRequest();
         void execute() override;
+};
+
+class getIsoRequest : public EventRequest
+{
+    public:
+        getIsoRequest(int, std::string, DataCamera*);
+        ~getIsoRequest();
+        void execute() override;
+};
+
+class setIsoRequest : public EventRequest
+{
+    public:
+        setIsoRequest(int, std::string, int, DataCamera*);
+        ~setIsoRequest();
+        void execute() override;
+    private:
+        int demand;
 };

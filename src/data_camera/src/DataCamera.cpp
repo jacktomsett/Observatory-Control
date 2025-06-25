@@ -19,6 +19,12 @@ DataCamera::DataCamera() : Node("data_camera")
     batteryservice = this->create_service<interfaces::srv::IntStatus>(
       "battery_status", std::bind(&DataCamera::battery_callback, this, std::placeholders::_1, std::placeholders::_2)
     );
+    getisoservice = this->create_service<interfaces::srv::IntStatus>(
+      "get_iso", std::bind(&DataCamera::getiso_callback, this, std::placeholders::_1, std::placeholders::_2)
+    );
+    setisoservice = this->create_service<interfaces::srv::IntRequest>(
+      "set_iso", std::bind(&DataCamera::setiso_callback, this, std::placeholders::_1, std::placeholders::_2)
+    );
     //Start camera thread
     cameraThread = std::thread(&DataCamera::cameraThreadFunction,this);
 
@@ -119,6 +125,7 @@ void DataCamera::cameraThreadFunction()
 
           //Perform event function
           currentEvent->execute();
+          currentEvent->complete = true; //TODO For some reason it is bad practice to directly modify class fields from outside of the class. It is supposed to be done via getter and settor functions. Also maybe this is better controlled by the execute function itself, maybe not (At first I thought not because I dont want the callback function doing anything while the execute function is still running). Either way I havent put any thought into it
 
         }
       }
@@ -213,6 +220,64 @@ void DataCamera::battery_callback(const std::shared_ptr<interfaces::srv::IntStat
     response->value = 0;
     response->status = false;
     response->description = "Need to implement error string here";
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
+  }
+  
+}
+
+void DataCamera::getiso_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request> request,
+      std::shared_ptr<interfaces::srv::IntStatus::Response> response)
+{
+  RCLCPP_INFO_STREAM(this->get_logger(),"Received request for iso setting");
+  
+  //Create event
+  getIsoRequest event(1,std::string("iso setting request"),this);
+  //Insert event request into queue
+  //TODO: Will probably factor this out into its own function that can be shared amongst callbacks. Actually, make it a class member that also sorts event queue via priority
+  queueLock.lock();
+  eventQueue.push_back(&event);
+  queueLock.unlock();
+  while (event.complete == false){}
+  if (event.status == true)
+  {
+    response->value = std::stoi(event.result); //TODO: Could probably incorporate the ROS messages into the event class to save copying the values over in each callback
+    response->status = true;
+    response->description = "";
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->value);
+  }
+  else
+  {
+    response->value = 0;
+    response->status = false;
+    response->description = "Need to implement error string here"; //TODO: Again, if the messages were in the event class we might be able to put any libgphoto errors directly into the message (maybe with a new context)
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
+  }
+  
+}
+
+void DataCamera::setiso_callback(const std::shared_ptr<interfaces::srv::IntRequest::Request> request,
+      std::shared_ptr<interfaces::srv::IntRequest::Response> response)
+{
+  RCLCPP_INFO_STREAM(this->get_logger(),"Received demand for iso setting: " << request->demand);
+  
+  //Create event
+  setIsoRequest event(1,std::string("iso setting request"),request->demand,this);
+  //Insert event request into queue
+  //TODO: Will probably factor this out into its own function that can be shared amongst callbacks. Actually, make it a class member that also sorts event queue via priority
+  queueLock.lock();
+  eventQueue.push_back(&event);
+  queueLock.unlock();
+  while (event.complete == false){}
+  if (event.status == true)
+  {
+    response->status = true;
+    response->description = "";
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->status );
+  }
+  else
+  {
+    response->status = false;
+    response->description = event.result; //TODO: Again, if the messages were in the event class we might be able to put any libgphoto errors directly into the message (maybe with a new context)
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
   }
   
