@@ -12,13 +12,16 @@ find_package(interfaces REQUIRED)
 
 # set include paths for gphoto2
 include_directories(/usr/include/gphoto2)
+include_directories(include)
 
-add_executable(camera_node src/camera_node.cpp)
+
+add_executable(camera_node src/camera_node.cpp src/DataCamera.cpp src/EventsClasses.cpp)
 target_link_libraries(camera_node -lgphoto2 -lgphoto2_port)
 
 target_include_directories(camera_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+
 target_compile_features(camera_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 ament_target_dependencies(
   camera_node

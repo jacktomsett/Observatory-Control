@@ -1,6 +1,27 @@
 #include "EventsClasses.h"
 #include "DataCamera.h"
 
+EventRequest::EventRequest(int p, std::string n, DataCamera* node)
+  :priority(p),
+  complete(false),
+  status(false),
+  cameranode(node),
+  eventID(n),
+  result("")
+{};
+
+EventRequest::~EventRequest(){};
+
+batteryRequest::batteryRequest(int p, std::string n, DataCamera* node)
+{
+  priority=p;
+  complete=false;
+  status=false;
+  cameranode=node;
+  eventID=n;
+  result="";
+};
+
 void batteryRequest::execute()
 {
     char* batteryValue;
