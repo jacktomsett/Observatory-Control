@@ -184,6 +184,7 @@ void DataCamera::cameraThreadFunction()
           connectToCamera();
           if (isCameraConnected == false)
           {
+            //FIXME: If a service callback runs while the camera is not connected it will hang indefinitely. There needs to be a service timeout or a check if the camera is connected (or both)
             //If camera is not connected, we need to add a delay here to avoid a hot
             //loop in the situation where no camera is connected
             usleep(200); //TODO: Decide whether this should be achieved with a ROS timer
