@@ -1,5 +1,6 @@
 #include "DataCamera.h"
 #include "EventsClasses.h"
+#include "gphoto2-port-result.h"
 
 DataCamera::DataCamera() : Node("data_camera")
 {
@@ -14,7 +15,7 @@ DataCamera::DataCamera() : Node("data_camera")
     emptyContext = gp_context_new();
 
     //Initialise publishers
-    eventpublisher = this->create_publisher<interfaces::msg::Event>("camera_events", 10);
+    eventpublisher = this->create_publisher<interfaces::msg::Event>("camera_events", 10); //TODO: Not currently doing anything with this. At a minimum I would suggets that every service callback reports to this
     //Initialise services
     batteryservice = this->create_service<interfaces::srv::IntStatus>(
       "battery_status", std::bind(&DataCamera::battery_callback, this, std::placeholders::_1, std::placeholders::_2)
@@ -71,6 +72,84 @@ bool DataCamera::get_setting_value(char* key, char** value)
       }
 
       return returnVal;
+}
+
+bool DataCamera::set_menu_setting_value(char* key, const char* demand, std::string *errorstring)
+{
+  int ret = 0;
+  int Nchoices = 0;
+  CameraWidget *widget=NULL;
+  CameraWidget *child = NULL;
+  std::vector<std::string> allowedValues;
+  *errorstring = "";
+
+  //Fetch configuration widget
+  ret = gp_camera_get_config(cameraHandle,&widget,context);
+  if(ret != GP_OK)
+  {
+              *errorstring = "Failed to get configuration choice: " + std::string(gp_port_result_as_string(ret));
+  }
+  else{
+    //TODO: The following two function calls are taken from the libgphoto2 github samples. It seems like only one should be necessary, and worth experimenting with.
+    ret = gp_widget_get_child_by_name(widget,key,&child);
+    if (ret < GP_OK)
+    {
+      ret = gp_widget_get_child_by_label(widget, key, &child);
+    }
+  }
+  //Build list of allowed values
+  if(ret == GP_OK)
+  {
+    Nchoices = gp_widget_count_choices(child);
+    const char * choice;
+    for (int i = 0; i < Nchoices; i++)
+    {
+      ret = gp_widget_get_choice(child,i,&choice);
+      if (ret == GP_OK)
+      {
+        allowedValues.push_back(choice);
+      }
+      else
+      {
+        *errorstring = "Failed to get configuration widget: " + std::string(gp_port_result_as_string(ret));
+        break;
+      }
+    }
+  }
+  //If demand is not present in allowed values, build an error string containing allowed values
+  if(!(std::find(allowedValues.begin(),allowedValues.end(),std::string(demand)) != allowedValues.end()))
+  {
+    *errorstring = "Allowed values are: [";
+    for (int i = 0; i < allowedValues.size(); i++)
+    {
+      if (i != (allowedValues.size()-1))
+      {
+        *errorstring = *errorstring + allowedValues[i] + ",";
+      }
+      else
+      {
+        *errorstring = *errorstring + allowedValues[i] + "]";
+      }
+    }
+  }
+  else if(ret == GP_OK)
+  {
+    ret = gp_widget_set_value(child, demand);
+    if(ret != GP_OK)
+    {
+      *errorstring = "Failed to set value to widget: " + std::string(gp_port_result_as_string(ret));
+    }
+  }
+  if(ret == GP_OK)
+  {
+    gp_camera_set_config(cameraHandle,widget,context);
+    if(ret != GP_OK)
+    {
+      *errorstring = "Failed to applu new configuration widget to camera: " + std::string(gp_port_result_as_string(ret));
+    }
+  }
+
+  return (ret == GP_OK);
 }
 
 void DataCamera::contextErrorFunction (GPContext *context, const char *str, void *data)

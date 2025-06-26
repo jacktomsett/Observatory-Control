@@ -93,8 +93,20 @@ setIsoRequest::~setIsoRequest(){};
 
 void setIsoRequest::execute()
 {
-  //TODO: Implement this
-  response->status = false;
-  response->description = "Error, functionality not yet implemented";
+  std::string errorstring, demandstring;
+  demandstring = std::to_string(request->demand);
+  const char* dem = (demandstring).c_str();
+  bool retVal = cameranode->set_menu_setting_value("iso",dem,&errorstring);
+  if(retVal == true)
+  {
+    response->status = true;
+    response->description = "";
+  }
+  else
+  {
+    response->status = false;
+    response->description = errorstring;
+  }
+
   return;
 }

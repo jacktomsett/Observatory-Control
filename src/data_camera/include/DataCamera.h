@@ -14,6 +14,7 @@ class DataCamera : public rclcpp::Node
         ~DataCamera();
 
         bool get_setting_value(char*, char**);
+        bool set_menu_setting_value(char*, const char*, std::string*);
 
     private:
         //State tracking variables
