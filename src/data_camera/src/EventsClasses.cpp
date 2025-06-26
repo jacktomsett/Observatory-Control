@@ -4,31 +4,26 @@
 EventRequest::EventRequest()
   :priority(3),
   complete(false),
-  status(false),
   cameranode(nullptr),
-  eventID("ERROR"),
-  result("")
+  eventID("ERROR")
 {};
 
 EventRequest::EventRequest(int p, std::string n, DataCamera* node)
   :priority(p),
   complete(false),
-  status(false),
   cameranode(node),
-  eventID(n),
-  result("")
+  eventID(n)
 {};
 
 EventRequest::~EventRequest(){};
 
-batteryRequest::batteryRequest(int p, std::string n, DataCamera* node)
+batteryRequest::batteryRequest(int p, std::string n, std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera* node)
 {
   priority=p;
   complete=false;
-  status=false;
+  response = res;
   cameranode=node;
   eventID=n;
-  result="";
 };
 
 batteryRequest::~batteryRequest(){};
@@ -39,25 +34,28 @@ void batteryRequest::execute()
     bool retval = cameranode->get_setting_value("batterylevel",&batteryValue);
     if (retval == true)
     {
-      result = std::string(batteryValue);
-      status = true;
+      std::string battValue = std::string(batteryValue);\
+      battValue.pop_back(); //Remove percent sign
+      response->value = std::stoi(battValue);
+      response->description = "";
+      response->status = true;
     }
     else
     {
-      result = "0";
-      status = false;
+      response->value = 0;
+      response->status = false;
+      response->description = "Error fetching value from camera"; //TODO: Would be nice to have the libgphoto error here. Would need to pass the Event class to the context (or just response pointer perhaps)
     }
     return;
 }
 
-getIsoRequest::getIsoRequest(int p, std::string n, DataCamera* node)
+getIsoRequest::getIsoRequest(int p, std::string n, std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera* node)
 {
   priority=p;
   complete=false;
-  status=false;
   cameranode=node;
   eventID=n;
-  result="";
+  response = res;
 };
 
 getIsoRequest::~getIsoRequest(){};
@@ -68,32 +66,35 @@ void getIsoRequest::execute()
     bool retval = cameranode->get_setting_value("iso",&isoSettingValue);
     if (retval == true)
     {
-      result = std::string(isoSettingValue);
-      status = true;
+      response->value = std::stoi(isoSettingValue);
+      response->description = "";
+      response->status = true;
     }
     else
     {
-      result = "0";
-      status = false;
+      response->value = 0;
+      response->description = "Error fetching information from camera"; //TODO: Pull from libgphoto
+      response->status = false;
     }
     return;
 }
 
-setIsoRequest::setIsoRequest(int p, std::string n, int d, DataCamera* node)
+setIsoRequest::setIsoRequest(int p, std::string n, std::shared_ptr<interfaces::srv::IntRequest::Request> req, std::shared_ptr<interfaces::srv::IntRequest::Response> res, DataCamera* node)
 {
   priority=p;
   complete=false;
-  status=false;
   cameranode=node;
   eventID=n;
-  result="";
-  demand = d;
+  request = req;
+  response = res;
 };
 
 setIsoRequest::~setIsoRequest(){};
 
 void setIsoRequest::execute()
 {
-  result = "Error, functionality not yet implemented";
+  //TODO: Implement this
+  response->status = false;
+  response->description = "Error, functionality not yet implemented";
   return;
 }

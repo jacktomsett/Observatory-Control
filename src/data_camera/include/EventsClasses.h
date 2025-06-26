@@ -1,4 +1,6 @@
 #include <string>
+#include "interfaces/srv/int_status.hpp"
+#include "interfaces/srv/int_request.hpp"
 
 class DataCamera; //Forward declaration
 class EventRequest
@@ -10,35 +12,38 @@ class EventRequest
 
     int priority;
     bool complete;
-    bool status;
     DataCamera* cameranode;
     std::string eventID;
-    std::string result;
     virtual void execute() = 0;
 };
 
 class batteryRequest : public EventRequest
 {
     public:
-        batteryRequest(int, std::string, DataCamera*);
+        batteryRequest(int, std::string, std::shared_ptr<interfaces::srv::IntStatus::Response>, DataCamera*);
         ~batteryRequest();
         void execute() override;
+    private:
+        std::shared_ptr<interfaces::srv::IntStatus::Response> response;
 };
 
 class getIsoRequest : public EventRequest
 {
     public:
-        getIsoRequest(int, std::string, DataCamera*);
+        getIsoRequest(int, std::string, std::shared_ptr<interfaces::srv::IntStatus::Response>, DataCamera*);
         ~getIsoRequest();
         void execute() override;
+    private:
+        std::shared_ptr<interfaces::srv::IntStatus::Response> response;
 };
 
 class setIsoRequest : public EventRequest
 {
     public:
-        setIsoRequest(int, std::string, int, DataCamera*);
+        setIsoRequest(int, std::string,std::shared_ptr<interfaces::srv::IntRequest::Request>,std::shared_ptr<interfaces::srv::IntRequest::Response> response,DataCamera*);
         ~setIsoRequest();
         void execute() override;
     private:
-        int demand;
+        std::shared_ptr<interfaces::srv::IntRequest::Request> request;
+        std::shared_ptr<interfaces::srv::IntRequest::Response> response;
 };

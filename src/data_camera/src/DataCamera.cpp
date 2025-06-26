@@ -198,28 +198,23 @@ void DataCamera::battery_callback(const std::shared_ptr<interfaces::srv::IntStat
       std::shared_ptr<interfaces::srv::IntStatus::Response> response)
 {
   RCLCPP_INFO_STREAM(this->get_logger(),"Received request for battery status");
-  
+  //Initialise response status
+  response->status = false;
+
   //Create event
-  batteryRequest event(1,std::string("battery request"),this);
+  batteryRequest event(1,std::string("battery request"),response,this);
   //Insert event request into queue
   //TODO: Will probably factor this out into its own function that can be shared amongst callbacks
   queueLock.lock();
   eventQueue.push_back(&event);
   queueLock.unlock();
   while (event.complete == false){}
-  if (event.status == true)
+  if (response->status == true)
   {
-    event.result.pop_back(); //Remove percent sign
-    response->value = std::stoi(event.result);
-    response->status = true;
-    response->description = "";
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->value);
   }
   else
   {
-    response->value = 0;
-    response->status = false;
-    response->description = "Need to implement error string here";
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
   }
   
@@ -229,27 +224,22 @@ void DataCamera::getiso_callback(const std::shared_ptr<interfaces::srv::IntStatu
       std::shared_ptr<interfaces::srv::IntStatus::Response> response)
 {
   RCLCPP_INFO_STREAM(this->get_logger(),"Received request for iso setting");
-  
+  response->status = false;
+
   //Create event
-  getIsoRequest event(1,std::string("iso setting request"),this);
+  getIsoRequest event(1,std::string("iso setting request"), response ,this);
   //Insert event request into queue
   //TODO: Will probably factor this out into its own function that can be shared amongst callbacks. Actually, make it a class member that also sorts event queue via priority
   queueLock.lock();
   eventQueue.push_back(&event);
   queueLock.unlock();
   while (event.complete == false){}
-  if (event.status == true)
+  if (response->status == true)
   {
-    response->value = std::stoi(event.result); //TODO: Could probably incorporate the ROS messages into the event class to save copying the values over in each callback
-    response->status = true;
-    response->description = "";
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->value);
   }
   else
   {
-    response->value = 0;
-    response->status = false;
-    response->description = "Need to implement error string here"; //TODO: Again, if the messages were in the event class we might be able to put any libgphoto errors directly into the message (maybe with a new context)
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
   }
   
@@ -259,25 +249,22 @@ void DataCamera::setiso_callback(const std::shared_ptr<interfaces::srv::IntReque
       std::shared_ptr<interfaces::srv::IntRequest::Response> response)
 {
   RCLCPP_INFO_STREAM(this->get_logger(),"Received demand for iso setting: " << request->demand);
-  
+  response->status = false;
+    
   //Create event
-  setIsoRequest event(1,std::string("iso setting request"),request->demand,this);
+  setIsoRequest event(1,std::string("iso setting request"),request, response,this);
   //Insert event request into queue
   //TODO: Will probably factor this out into its own function that can be shared amongst callbacks. Actually, make it a class member that also sorts event queue via priority
   queueLock.lock();
   eventQueue.push_back(&event);
   queueLock.unlock();
   while (event.complete == false){}
-  if (event.status == true)
+  if (response->status == true)
   {
-    response->status = true;
-    response->description = "";
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->status );
   }
   else
   {
-    response->status = false;
-    response->description = event.result; //TODO: Again, if the messages were in the event class we might be able to put any libgphoto errors directly into the message (maybe with a new context)
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
   }
   
