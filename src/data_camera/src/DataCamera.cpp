@@ -328,9 +328,10 @@ void DataCamera::getiso_callback(const std::shared_ptr<interfaces::srv::IntStatu
 void DataCamera::setiso_callback(const std::shared_ptr<interfaces::srv::IntRequest::Request> request,
       std::shared_ptr<interfaces::srv::IntRequest::Response> response)
 {
+  //FIXME: There is a bug here somewhere. It does set the iso when it is able (valid request, camera in manual mode) but it still reports success to the service client even when it is unsuccessful
   RCLCPP_INFO_STREAM(this->get_logger(),"Received demand for iso setting: " << request->demand);
   response->status = false;
-    
+  
   //Create event
   setIsoRequest event(1,std::string("iso setting request"),request, response,this);
   //Insert event request into queue
