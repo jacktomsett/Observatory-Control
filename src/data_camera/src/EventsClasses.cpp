@@ -17,6 +17,20 @@ EventRequest::EventRequest(int p, std::string t, DataCamera* node)
 
 EventRequest::~EventRequest(){};
 
+bool EventRequest::operator<(const EventRequest& b)
+{
+  bool result;
+  if (b.priority == this->priority)
+  {
+    result = (this->timestamp < b.timestamp);
+  }
+  else
+  {
+    result = (this->priority) < b.priority;
+  }
+  return result;
+}
+
 batteryRequest::batteryRequest(int p, std::string t, std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera* node)
 {
   priority=p;

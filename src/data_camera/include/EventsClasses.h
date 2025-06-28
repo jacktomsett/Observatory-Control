@@ -10,6 +10,9 @@ class EventRequest
     EventRequest(int, std::string, DataCamera* );
     ~EventRequest();
 
+    // Overload < operator to allow sorting of event queue
+    bool operator<(const EventRequest&);
+
     int priority;
     std::string timestamp;
     bool complete;
