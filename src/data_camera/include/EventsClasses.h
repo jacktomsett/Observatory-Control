@@ -11,9 +11,9 @@ class EventRequest
     ~EventRequest();
 
     int priority;
+    std::string timestamp;
     bool complete;
     DataCamera* cameranode;
-    std::string eventID;
     virtual void execute() = 0;
 };
 

@@ -1,29 +1,29 @@
 #include "EventsClasses.h"
 #include "DataCamera.h"
-
+//TODO: Error checking on timestamps needs to be performed
 EventRequest::EventRequest()
   :priority(3),
+  timestamp("ERROR"),
   complete(false),
-  cameranode(nullptr),
-  eventID("ERROR")
+  cameranode(nullptr)
 {};
 
-EventRequest::EventRequest(int p, std::string n, DataCamera* node)
+EventRequest::EventRequest(int p, std::string t, DataCamera* node)
   :priority(p),
+  timestamp(t),
   complete(false),
-  cameranode(node),
-  eventID(n)
+  cameranode(node)
 {};
 
 EventRequest::~EventRequest(){};
 
-batteryRequest::batteryRequest(int p, std::string n, std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera* node)
+batteryRequest::batteryRequest(int p, std::string t, std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera* node)
 {
   priority=p;
+  timestamp = t;
   complete=false;
   response = res;
   cameranode=node;
-  eventID=n;
 };
 
 batteryRequest::~batteryRequest(){};
@@ -49,12 +49,12 @@ void batteryRequest::execute()
     return;
 }
 
-getIsoRequest::getIsoRequest(int p, std::string n, std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera* node)
+getIsoRequest::getIsoRequest(int p, std::string t, std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera* node)
 {
   priority=p;
+  timestamp = t;
   complete=false;
   cameranode=node;
-  eventID=n;
   response = res;
 };
 
@@ -79,12 +79,12 @@ void getIsoRequest::execute()
     return;
 }
 
-setIsoRequest::setIsoRequest(int p, std::string n, std::shared_ptr<interfaces::srv::IntRequest::Request> req, std::shared_ptr<interfaces::srv::IntRequest::Response> res, DataCamera* node)
+setIsoRequest::setIsoRequest(int p, std::string t, std::shared_ptr<interfaces::srv::IntRequest::Request> req, std::shared_ptr<interfaces::srv::IntRequest::Response> res, DataCamera* node)
 {
   priority=p;
+  timestamp = t;
   complete=false;
   cameranode=node;
-  eventID=n;
   request = req;
   response = res;
 };

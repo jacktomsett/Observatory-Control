@@ -282,7 +282,7 @@ void DataCamera::battery_callback(const std::shared_ptr<interfaces::srv::IntStat
   response->status = false;
 
   //Create event
-  batteryRequest event(1,std::string("battery request"),response,this);
+  batteryRequest event(1,std::string(request->timestamp),response,this);
   //Insert event request into queue
   //TODO: Will probably factor this out into its own function that can be shared amongst callbacks
   queueLock.lock();
@@ -307,7 +307,7 @@ void DataCamera::getiso_callback(const std::shared_ptr<interfaces::srv::IntStatu
   response->status = false;
 
   //Create event
-  getIsoRequest event(1,std::string("iso setting request"), response ,this);
+  getIsoRequest event(1,std::string(request->timestamp), response ,this);
   //Insert event request into queue
   //TODO: Will probably factor this out into its own function that can be shared amongst callbacks. Actually, make it a class member that also sorts event queue via priority
   queueLock.lock();
@@ -333,7 +333,7 @@ void DataCamera::setiso_callback(const std::shared_ptr<interfaces::srv::IntReque
   response->status = false;
   
   //Create event
-  setIsoRequest event(1,std::string("iso setting request"),request, response,this);
+  setIsoRequest event(1,std::string(request->timestamp),request, response,this);
   //Insert event request into queue
   //TODO: Will probably factor this out into its own function that can be shared amongst callbacks. Actually, make it a class member that also sorts event queue via priority
   queueLock.lock();

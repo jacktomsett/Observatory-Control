@@ -1,5 +1,6 @@
 #Request
 int64 demand
+string timestamp
 ---
 #Response
 bool status

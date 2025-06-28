@@ -1,4 +1,5 @@
 #Request
+string timestamp
 string demand
 ---
 #Response

@@ -11,6 +11,7 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
@@ -23,7 +24,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/DataImage.msg"
   "action/Sequence.action"
   "msg/DataFile.msg"
-  DEPENDENCIES sensor_msgs
+  DEPENDENCIES sensor_msgs std_msgs
 )
 
 
