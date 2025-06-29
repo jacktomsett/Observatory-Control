@@ -45,6 +45,7 @@ class DataCamera : public rclcpp::Node
         void connectToCamera();
         void disconnectCamera();
         void checkCameraConnection();
+        void insertEvent(EventRequest*);
 
         //Service Callbacks
         void battery_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request>, std::shared_ptr<interfaces::srv::IntStatus::Response>);
