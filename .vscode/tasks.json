@@ -32,6 +32,7 @@
             "command": "rm -r ${workspaceFolder}/{build,install,log}",
             "problemMatcher": []
         }
+        //TODO: Add in a task for linting ect.
     ],
     "inputs": [
         {

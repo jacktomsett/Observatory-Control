@@ -5,10 +5,9 @@
         "databaseFilename": "${default}",
         "limitSymbolsToIncludedHeaders": false
       },
-      //TODO: Change the include paths below to use vscode variables instead of hard coded paths
       "includePath": [
-        "/home/jackt/Projects/Observatory-Control/install/interfaces/include/**",
-        "/home/jackt/Projects/Observatory-Control/src/data_camera/include/",
+        "${workspaceFolder}install${/}interfaces${/}include${/}**",
+        "${workspaceFolder}src${/}data_camera${/}include",
         "/opt/ros/kilted/include/**",
         "/usr/include/**"
       ],
