@@ -103,5 +103,6 @@
         "valarray": "cpp",
         "variant": "cpp"
     },
-    "cmake.ignoreCMakeListsMissing": true
+    "cmake.ignoreCMakeListsMissing": true,
+    "ament-task-provider.envSetup": "/opt/ros/kilted/setup.bash"
 }

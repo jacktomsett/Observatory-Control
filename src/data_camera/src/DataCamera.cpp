@@ -76,11 +76,13 @@ bool DataCamera::get_setting_value(char * key, char ** value)
 bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::string *errorstring)
 {
   int ret = 0;
+  bool invalidDemand = false;
   int Nchoices = 0;
   CameraWidget *widget = NULL;
   CameraWidget *child = NULL;
   std::vector<std::string> allowedValues;
   *errorstring = "";
+  char * value;
 
   //Fetch configuration widget
   ret = gp_camera_get_config(cameraHandle, &widget, context);
@@ -113,6 +115,7 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
   if(!(std::find(allowedValues.begin(), allowedValues.end(),
     std::string(demand)) != allowedValues.end()))
   {
+    invalidDemand = true;
     *errorstring = "Allowed values are: [";
     for (int i = 0; i < allowedValues.size(); i++) {
       if (i != (allowedValues.size() - 1)) {
@@ -127,15 +130,27 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
       *errorstring = "Failed to set value to widget: " + std::string(gp_port_result_as_string(ret));
     }
   }
-  if(ret == GP_OK) {
-    gp_camera_set_config(cameraHandle, widget, context);
+  if((ret == GP_OK) && (invalidDemand == false)) {
+    ret = gp_camera_set_config(cameraHandle, widget, context);
     if(ret != GP_OK) {
-      *errorstring = "Failed to applu new configuration widget to camera: " +
+      *errorstring = "Failed to apply new configuration widget to camera: " +
         std::string(gp_port_result_as_string(ret));
     }
   }
+  //Check setting reported by camera matches new value
+  if((ret == GP_OK) && (invalidDemand == false)) {
+    if (get_setting_value("iso", &value) == false) {
+      *errorstring = "Failed to check updated setting value from camera";
+    }
+  }
+  if( (ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
+    const_cast<char *>(value)) != 0) )
+  {
+    *errorstring = "Failed to update setting on the camera";
+  }
 
-  return  ret == GP_OK;
+  return  (ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
+    const_cast<char *>(value)) == 0);
 }
 
 void DataCamera::contextErrorFunction(GPContext *context, const char *str, void *data)
@@ -303,7 +318,7 @@ void DataCamera::setiso_callback(
   const std::shared_ptr<interfaces::srv::IntRequest::Request> request,
   std::shared_ptr<interfaces::srv::IntRequest::Response> response)
 {
-  //FIXME: There is a bug here somewhere. It does set the iso when it is able (valid request, camera in manual mode) but it still reports success to the service client even when it is unsuccessful
+  //FIXME: There is a bug here somewhere. It does set the iso when it is able and correctly reports a fail when an invalid demand is supplied but it still reports success to the service client even when it is unsuccessful (if camera is not in manual mode for example)
   RCLCPP_INFO_STREAM(this->get_logger(), "Received demand for iso setting: " << request->demand);
   response->status = false;
 

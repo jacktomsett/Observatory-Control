@@ -108,8 +108,10 @@ void setIsoRequest::execute()
   std::string errorstring, demandstring;
   demandstring = std::to_string(request->demand);
   const char * dem = (demandstring).c_str();
-  bool retVal = cameranode->set_menu_setting_value("iso", dem, &errorstring);
-  if(retVal == true) {
+  bool retVal = cameranode->set_menu_setting_value("iso", dem, &errorstring); //This (or rather the libghoto2 function that is calls will sometimes return success even when updating the setting fails. Need to check the setting on the camera afterwards to be sure. Probably should do it internally
+
+  if( (retVal == true))
+  {
     response->status = true;
     response->description = "";
   } else {
