@@ -50,8 +50,8 @@ DataCamera::~DataCamera()
   cameraThread.join();
 }
 
-bool DataCamera::get_setting_value(char * key, char ** value)
-{
+bool DataCamera::get_setting_value(char * key, char ** value, std::string *err)
+{//TODO: Have not actually checked the error reporting yet because there is no easy way to make a simple request fail currently. Once the focal length service is added it can be tested by running it with the lens detached.
   bool returnVal = false;
   int ret = 0;
   CameraWidget *widget;
@@ -63,17 +63,20 @@ bool DataCamera::get_setting_value(char * key, char ** value)
   }
   if (ret == GP_OK) {
     *value = strdup (val);      //TODO: Copied this from previous iteration which contained a note stating that it is unclear what this is or why it is needed. Still don't know so need to find out
-  }
-  if (ret == GP_OK) {
     returnVal = true;
   } else if (ret == GP_ERROR_IO_USB_FIND || ret == GP_ERROR_IO_USB_CLAIM) {  //TODO: See if this can somehow be incorporated into a context or a callback within libgphoto2. Otherwise this statement will need to go everywhere
+    *err = "Camera not found";
     disconnectCamera();
+  }
+  else
+  {
+    *err = errorstring;
   }
 
   return returnVal;
 }
 
-bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::string *errorstring)
+bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::string *err)
 {
   int ret = 0;
   bool invalidDemand = false;
@@ -81,14 +84,14 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
   CameraWidget *widget = NULL;
   CameraWidget *child = NULL;
   std::vector<std::string> allowedValues;
-  *errorstring = "";
+  *err = "";
   char * value;
 
   //Fetch configuration widget
   ret = gp_camera_get_config(cameraHandle, &widget, context);
   if(ret != GP_OK) {
-    *errorstring = "Failed to get configuration choice: " +
-      std::string(gp_port_result_as_string(ret));
+    *err = "Failed to get configuration choice: " +
+      std::string(gp_port_result_as_string(ret)) + " " + errorstring;
   } else {
     //TODO: The following two function calls are taken from the libgphoto2 github samples. It seems like only one should be necessary, and worth experimenting with.
     ret = gp_widget_get_child_by_name(widget, key, &child);
@@ -105,8 +108,8 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
       if (ret == GP_OK) {
         allowedValues.push_back(choice);
       } else {
-        *errorstring = "Failed to get configuration widget: " +
-          std::string(gp_port_result_as_string(ret));
+        *err = "Failed to get configuration widget: " +
+          std::string(gp_port_result_as_string(ret))+ " " + errorstring;
         break;
       }
     }
@@ -116,37 +119,37 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
     std::string(demand)) != allowedValues.end()))
   {
     invalidDemand = true;
-    *errorstring = "Allowed values are: [";
+    *err = "Allowed values are: [";
     for (int i = 0; i < allowedValues.size(); i++) {
       if (i != (allowedValues.size() - 1)) {
-        *errorstring = *errorstring + allowedValues[i] + ",";
+        *err = *err + allowedValues[i] + ",";
       } else {
-        *errorstring = *errorstring + allowedValues[i] + "]";
+        *err = *err + allowedValues[i] + "]";
       }
     }
   } else if(ret == GP_OK) {
     ret = gp_widget_set_value(child, demand);
     if(ret != GP_OK) {
-      *errorstring = "Failed to set value to widget: " + std::string(gp_port_result_as_string(ret));
+      *err = "Failed to set value to widget: " + std::string(gp_port_result_as_string(ret)) + " " + errorstring;
     }
   }
   if((ret == GP_OK) && (invalidDemand == false)) {
     ret = gp_camera_set_config(cameraHandle, widget, context);
     if(ret != GP_OK) {
-      *errorstring = "Failed to apply new configuration widget to camera: " +
-        std::string(gp_port_result_as_string(ret));
+      *err = "Failed to apply new configuration widget to camera: " +
+        std::string(gp_port_result_as_string(ret))+ " " + errorstring;
     }
   }
   //Check setting reported by camera matches new value
   if((ret == GP_OK) && (invalidDemand == false)) {
-    if (get_setting_value("iso", &value) == false) {
-      *errorstring = "Failed to check updated setting value from camera";
+    if (get_setting_value("iso", &value, err) == false) {
+      *err = "Failed to check updated setting value from camera:"+ errorstring;
     }
   }
   if( (ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
     const_cast<char *>(value)) != 0) )
   {
-    *errorstring = "Failed to update setting on the camera";
+    *err = "Failed to update setting on the camera: " + errorstring;
   }
 
   return  (ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
@@ -161,6 +164,7 @@ void DataCamera::contextErrorFunction(GPContext *context, const char *str, void 
       //TODO: I think it should be possible to check if the camera is disconnected here and call the disconnect function
   DataCamera * object = static_cast<DataCamera *>(data);
   RCLCPP_ERROR_STREAM(object->get_logger(), str);
+  object->errorstring = std::string(str);
 }
 
 void DataCamera::contextStatusFunction(GPContext *context, const char *str, void *data)
@@ -213,10 +217,11 @@ void DataCamera::connectToCamera()
   bool retval = false;
   char *make;
   char *model;
+  std::string err;
   if (ret == GP_OK) {
     //Fetch make and model
-    retval = get_setting_value("manufacturer", &make);
-    retval += get_setting_value("cameramodel", &model);
+    retval = get_setting_value("manufacturer", &make,&err);
+    retval += get_setting_value("cameramodel", &model,&err);
   }
   if(retval == true) {
     isCameraConnected = true;

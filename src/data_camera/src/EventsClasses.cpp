@@ -48,7 +48,8 @@ batteryRequest::~batteryRequest() {}
 void batteryRequest::execute()
 {
   char * batteryValue;
-  bool retval = cameranode->get_setting_value("batterylevel", &batteryValue);
+  std::string error = "";
+  bool retval = cameranode->get_setting_value("batterylevel", &batteryValue, &error);
   if (retval == true) {
     std::string battValue = std::string(batteryValue); \
     battValue.pop_back();   //Remove percent sign
@@ -58,7 +59,7 @@ void batteryRequest::execute()
   } else {
     response->value = 0;
     response->status = false;
-    response->description = "Error fetching value from camera";   //TODO: Would be nice to have the libgphoto error here. Would need to pass the Event class to the context (or just response pointer perhaps)
+    response->description = error;
   }
   return;
 }
@@ -79,14 +80,15 @@ getIsoRequest::~getIsoRequest() {}
 void getIsoRequest::execute()
 {
   char * isoSettingValue;
-  bool retval = cameranode->get_setting_value("iso", &isoSettingValue);
+  std::string error = "";
+  bool retval = cameranode->get_setting_value("iso", &isoSettingValue, &error);
   if (retval == true) {
     response->value = std::stoi(isoSettingValue);
     response->description = "";
     response->status = true;
   } else {
     response->value = 0;
-    response->description = "Error fetching information from camera";   //TODO: Pull from libgphoto
+    response->description = error;
     response->status = false;
   }
   return;
@@ -108,10 +110,10 @@ setIsoRequest::~setIsoRequest() {}
 
 void setIsoRequest::execute()
 {
-  std::string errorstring, demandstring;
+  std::string error, demandstring;
   demandstring = std::to_string(request->demand);
   const char * dem = (demandstring).c_str();
-  bool retVal = cameranode->set_menu_setting_value("iso", dem, &errorstring); //This (or rather the libghoto2 function that is calls will sometimes return success even when updating the setting fails. Need to check the setting on the camera afterwards to be sure. Probably should do it internally
+  bool retVal = cameranode->set_menu_setting_value("iso", dem, &error);
 
   if( (retVal == true))
   {
@@ -119,7 +121,7 @@ void setIsoRequest::execute()
     response->description = "";
   } else {
     response->status = false;
-    response->description = errorstring;
+    response->description = error;
   }
 
 }

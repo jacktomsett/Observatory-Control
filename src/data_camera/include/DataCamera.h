@@ -13,7 +13,7 @@ class DataCamera : public rclcpp::Node
         DataCamera();
         ~DataCamera();
 
-        bool get_setting_value(char*, char**);
+        bool get_setting_value(char*, char**, std::string*);
         bool set_menu_setting_value(char*, const char*, std::string*);
 
     private:
@@ -30,6 +30,8 @@ class DataCamera : public rclcpp::Node
 
         static void contextErrorFunction(GPContext*, const char*, void*);
         static void contextStatusFunction(GPContext*, const char*, void*);
+
+        std::string errorstring; //Holds last error from camera, to send back to service clients
 
         //Publishers, Subscribers, Services, Actions, Parameters
         rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
