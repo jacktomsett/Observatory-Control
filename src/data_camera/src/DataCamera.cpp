@@ -67,9 +67,7 @@ bool DataCamera::get_setting_value(char * key, char ** value, std::string *err)
   } else if (ret == GP_ERROR_IO_USB_FIND || ret == GP_ERROR_IO_USB_CLAIM) {  //TODO: See if this can somehow be incorporated into a context or a callback within libgphoto2. Otherwise this statement will need to go everywhere
     *err = "Camera not found";
     disconnectCamera();
-  }
-  else
-  {
+  } else {
     *err = errorstring;
   }
 
@@ -109,7 +107,7 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
         allowedValues.push_back(choice);
       } else {
         *err = "Failed to get configuration widget: " +
-          std::string(gp_port_result_as_string(ret))+ " " + errorstring;
+          std::string(gp_port_result_as_string(ret)) + " " + errorstring;
         break;
       }
     }
@@ -130,20 +128,21 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
   } else if(ret == GP_OK) {
     ret = gp_widget_set_value(child, demand);
     if(ret != GP_OK) {
-      *err = "Failed to set value to widget: " + std::string(gp_port_result_as_string(ret)) + " " + errorstring;
+      *err = "Failed to set value to widget: " + std::string(gp_port_result_as_string(ret)) + " " +
+        errorstring;
     }
   }
   if((ret == GP_OK) && (invalidDemand == false)) {
     ret = gp_camera_set_config(cameraHandle, widget, context);
     if(ret != GP_OK) {
       *err = "Failed to apply new configuration widget to camera: " +
-        std::string(gp_port_result_as_string(ret))+ " " + errorstring;
+        std::string(gp_port_result_as_string(ret)) + " " + errorstring;
     }
   }
   //Check setting reported by camera matches new value
   if((ret == GP_OK) && (invalidDemand == false)) {
     if (get_setting_value("iso", &value, err) == false) {
-      *err = "Failed to check updated setting value from camera:"+ errorstring;
+      *err = "Failed to check updated setting value from camera:" + errorstring;
     }
   }
   if( (ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
@@ -220,8 +219,8 @@ void DataCamera::connectToCamera()
   std::string err;
   if (ret == GP_OK) {
     //Fetch make and model
-    retval = get_setting_value("manufacturer", &make,&err);
-    retval += get_setting_value("cameramodel", &model,&err);
+    retval = get_setting_value("manufacturer", &make, &err);
+    retval += get_setting_value("cameramodel", &model, &err);
   }
   if(retval == true) {
     isCameraConnected = true;
@@ -285,17 +284,14 @@ void DataCamera::battery_callback(
   response->value = 0;
   response->description = "";
 
-  if(isCameraConnected == true)
-  {
+  if(isCameraConnected == true) {
     //Create event
     batteryRequest event(1, response, this);
     //Insert event request into queue
     insertEvent(&event);
 
     while (event.complete == false) {}
-  }
-  else
-  {
+  } else {
     response->description = "Camera disconnected";
   }
   if (response->status == true) {
@@ -314,17 +310,14 @@ void DataCamera::getiso_callback(
   response->status = false;
   response->value = 0;
   response->description = "";
-  if(isCameraConnected == true)
-  {
+  if(isCameraConnected == true) {
     //Create event
     getIsoRequest event(1, response, this);
     //Insert event request into queue
     insertEvent(&event);
 
     while (event.complete == false) {}
-  }
-  else
-  {
+  } else {
     response->description = "Camera disconnected";
   }
   if (response->status == true) {
@@ -342,17 +335,14 @@ void DataCamera::setiso_callback(
   RCLCPP_INFO_STREAM(this->get_logger(), "Received demand for iso setting: " << request->demand);
   response->status = false;
   response->description = "";
-  if(isCameraConnected == true)
-  {
+  if(isCameraConnected == true) {
     //Create event
     setIsoRequest event(1, request, response, this);
     //Insert event request into queue
     insertEvent(&event);
 
     while (event.complete == false) {}
-  }
-  else
-  {
+  } else {
     response->description = "Camera disconnected";
   }
   if (response->status == true) {

@@ -7,51 +7,57 @@
 #include <mutex>
 
 class EventRequest; //forward declaration
-class DataCamera : public rclcpp::Node
+class DataCamera: public rclcpp::Node
 {
-    public:
-        DataCamera();
-        ~DataCamera();
+public:
+  DataCamera();
+  ~DataCamera();
 
-        bool get_setting_value(char*, char**, std::string*);
-        bool set_menu_setting_value(char*, const char*, std::string*);
+  bool get_setting_value(char *, char **, std::string *);
+  bool set_menu_setting_value(char *, const char *, std::string *);
 
-    private:
+private:
         //State tracking variables
-        bool shutdownRequest;
-        bool isCameraConnected;
-        std::vector<EventRequest*> eventQueue;
-        std::mutex queueLock;
+  bool shutdownRequest;
+  bool isCameraConnected;
+  std::vector < EventRequest * > eventQueue;
+  std::mutex queueLock;
 
         //libgphoto variables and functions
-        Camera *cameraHandle;
-        GPContext *context;     //Main context which reports to ROS info and error streams
-        GPContext *emptyContext;    //Empty context with no error reporting. Used when no camera is connected and we are poling to detect one
+  Camera *cameraHandle;
+  GPContext *context;           //Main context which reports to ROS info and error streams
+  GPContext *emptyContext;          //Empty context with no error reporting. Used when no camera is connected and we are poling to detect one
 
-        static void contextErrorFunction(GPContext*, const char*, void*);
-        static void contextStatusFunction(GPContext*, const char*, void*);
+  static void contextErrorFunction(GPContext *, const char *, void *);
+  static void contextStatusFunction(GPContext *, const char *, void *);
 
-        std::string errorstring; //Holds last error from camera, to send back to service clients
+  std::string errorstring;       //Holds last error from camera, to send back to service clients
 
         //Publishers, Subscribers, Services, Actions, Parameters
-        rclcpp::Publisher<interfaces::msg::Event>::SharedPtr eventpublisher;
-        rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr batteryservice;
-        rclcpp::Service<interfaces::srv::IntStatus>::SharedPtr getisoservice;
-        rclcpp::Service<interfaces::srv::IntRequest>::SharedPtr setisoservice;
+  rclcpp::Publisher < interfaces::msg::Event > ::SharedPtr eventpublisher;
+  rclcpp::Service < interfaces::srv::IntStatus > ::SharedPtr batteryservice;
+  rclcpp::Service < interfaces::srv::IntStatus > ::SharedPtr getisoservice;
+  rclcpp::Service < interfaces::srv::IntRequest > ::SharedPtr setisoservice;
 
         //Camera Thread
-        std::thread cameraThread;
-        void cameraThreadFunction();
+  std::thread cameraThread;
+  void cameraThreadFunction();
 
         //Helper functions
-        void connectToCamera();
-        void disconnectCamera();
-        void checkCameraConnection();
-        void insertEvent(EventRequest*);
+  void connectToCamera();
+  void disconnectCamera();
+  void checkCameraConnection();
+  void insertEvent(EventRequest *);
 
         //Service Callbacks
-        void battery_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request>, std::shared_ptr<interfaces::srv::IntStatus::Response>);
-        void getiso_callback(const std::shared_ptr<interfaces::srv::IntStatus::Request>, std::shared_ptr<interfaces::srv::IntStatus::Response>);
-        void setiso_callback(const std::shared_ptr<interfaces::srv::IntRequest::Request>, std::shared_ptr<interfaces::srv::IntRequest::Response>);
+  void battery_callback(
+    const std::shared_ptr < interfaces::srv::IntStatus::Request >,
+    std::shared_ptr < interfaces::srv::IntStatus::Response >);
+  void getiso_callback(
+    const std::shared_ptr < interfaces::srv::IntStatus::Request >,
+    std::shared_ptr < interfaces::srv::IntStatus::Response >);
+  void setiso_callback(
+    const std::shared_ptr < interfaces::srv::IntRequest::Request >,
+    std::shared_ptr < interfaces::srv::IntRequest::Response >);
 
 };
