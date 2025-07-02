@@ -38,6 +38,7 @@ private:
   rclcpp::Service < interfaces::srv::IntStatus > ::SharedPtr batteryservice;
   rclcpp::Service < interfaces::srv::IntStatus > ::SharedPtr getisoservice;
   rclcpp::Service < interfaces::srv::IntRequest > ::SharedPtr setisoservice;
+  rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getqualservice;
 
         //Camera Thread
   std::thread cameraThread;
@@ -59,5 +60,8 @@ private:
   void setiso_callback(
     const std::shared_ptr < interfaces::srv::IntRequest::Request >,
     std::shared_ptr < interfaces::srv::IntRequest::Response >);
+  void getqual_callback(
+    const std::shared_ptr < interfaces::srv::StringStatus::Request >,
+    std::shared_ptr < interfaces::srv::StringStatus::Response >);
 
 };

@@ -1,6 +1,7 @@
 #include <string>
 #include "interfaces/srv/int_status.hpp"
 #include "interfaces/srv/int_request.hpp"
+#include "interfaces/srv/string_status.hpp"
 
 class DataCamera; //Forward declaration
 class EventRequest
@@ -49,4 +50,14 @@ class setIsoRequest : public EventRequest
     private:
         std::shared_ptr<interfaces::srv::IntRequest::Request> request;
         std::shared_ptr<interfaces::srv::IntRequest::Response> response;
+};
+
+class getImgQualityRequest : public EventRequest
+{ //TODO: Have not tested this yet
+    public:
+        getImgQualityRequest(int, std::shared_ptr<interfaces::srv::StringStatus::Response>, DataCamera*);
+        ~getImgQualityRequest();
+        void execute() override;
+    private:
+        std::shared_ptr<interfaces::srv::StringStatus::Response> response;
 };

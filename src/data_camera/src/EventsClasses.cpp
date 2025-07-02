@@ -32,9 +32,7 @@ bool EventRequest::operator<(const EventRequest & b)
   return result;
 }
 
-batteryRequest::batteryRequest(
-  int p,
-  std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera * node)
+batteryRequest::batteryRequest(int p,std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera * node)
 {
   priority = p;
   timestamp = std::format("{:%FT%TZ}",std::chrono::system_clock::now());
@@ -65,8 +63,7 @@ void batteryRequest::execute()
 }
 
 getIsoRequest::getIsoRequest(
-  int p,
-  std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera * node)
+  int p, std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera * node)
 {
   priority = p;
   timestamp = std::format("{:%FT%TZ}",std::chrono::system_clock::now());
@@ -94,10 +91,7 @@ void getIsoRequest::execute()
   return;
 }
 
-setIsoRequest::setIsoRequest(
-  int p,
-  std::shared_ptr<interfaces::srv::IntRequest::Request> req,
-  std::shared_ptr<interfaces::srv::IntRequest::Response> res, DataCamera * node)
+setIsoRequest::setIsoRequest(int p, std::shared_ptr<interfaces::srv::IntRequest::Request> req,std::shared_ptr<interfaces::srv::IntRequest::Response> res, DataCamera * node)
 {
   priority = p;
   timestamp = std::format("{:%FT%TZ}",std::chrono::system_clock::now());
@@ -124,4 +118,32 @@ void setIsoRequest::execute()
     response->description = error;
   }
 
+}
+
+getImgQualityRequest::getImgQualityRequest(int p, std::shared_ptr<interfaces::srv::StringStatus::Response> res, DataCamera* node)
+{
+  priority = p;
+  timestamp = std::format("{:%FT%TZ}",std::chrono::system_clock::now());
+  complete = false;
+  response = res;
+  cameranode = node;
+}
+
+getImgQualityRequest::~getImgQualityRequest(){}
+
+void getImgQualityRequest::execute()
+{
+  char * qualitySettingValue;
+  std::string error = "";
+  bool retval = cameranode->get_setting_value("imagequality", &qualitySettingValue, &error);
+  if (retval == true) {
+    response->value = std::string(qualitySettingValue);
+    response->description = "";
+    response->status = true;
+  } else {
+    response->value = "ERR";
+    response->description = error;
+    response->status = false;
+  }
+  return;
 }

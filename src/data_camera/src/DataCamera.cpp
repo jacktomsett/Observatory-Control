@@ -30,6 +30,11 @@ DataCamera::DataCamera()
       "set_iso",
     std::bind(&DataCamera::setiso_callback, this, std::placeholders::_1, std::placeholders::_2)
   );
+  getqualservice = this->create_service<interfaces::srv::StringStatus>(
+      "get_img_quality",
+    std::bind(&DataCamera::getqual_callback, this, std::placeholders::_1, std::placeholders::_2)
+  );
+
     //Start camera thread
   cameraThread = std::thread(&DataCamera::cameraThreadFunction, this);
 
@@ -347,6 +352,33 @@ void DataCamera::setiso_callback(
   }
   if (response->status == true) {
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->status);
+  } else {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
+  }
+
+}
+
+
+void DataCamera::getqual_callback(
+  const std::shared_ptr<interfaces::srv::StringStatus::Request> request,
+  std::shared_ptr<interfaces::srv::StringStatus::Response> response)
+{
+  RCLCPP_INFO_STREAM(this->get_logger(), "Received request for image quality setting");
+  response->status = false;
+  response->value = "";
+  response->description = "";
+  if(isCameraConnected == true) {
+    //Create event
+    getImgQualityRequest event(1, response, this);
+    //Insert event request into queue
+    insertEvent(&event);
+
+    while (event.complete == false) {}
+  } else {
+    response->description = "Camera disconnected";
+  }
+  if (response->status == true) {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->value);
   } else {
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
   }
