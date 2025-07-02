@@ -169,7 +169,7 @@ void DataCamera::contextStatusFunction(GPContext *context, const char *str, void
       //This is neccessary because libgphoto2 requires this function to be static
       //TODO: might need some way to ensure only a pointer to the class object is passed
   DataCamera * object = static_cast<DataCamera *>(data);
-  RCLCPP_ERROR_STREAM(object->get_logger(), str);
+  RCLCPP_INFO_STREAM(object->get_logger(), str);
 }
 
 void DataCamera::cameraThreadFunction()
@@ -182,7 +182,6 @@ void DataCamera::cameraThreadFunction()
     if(isCameraConnected == false) {
       connectToCamera();
       if (isCameraConnected == false) {
-            //FIXME: If a service callback runs while the camera is not connected it will hang indefinitely. There needs to be a service timeout or a check if the camera is connected (or both)
             //If camera is not connected, we need to add a delay here to avoid a hot
             //loop in the situation where no camera is connected
         usleep(200);     //TODO: Decide whether this should be achieved with a ROS timer
@@ -278,13 +277,22 @@ void DataCamera::battery_callback(
   RCLCPP_INFO_STREAM(this->get_logger(), "Received request for battery status");
   //Initialise response status
   response->status = false;
+  response->value = 0;
+  response->description = "";
 
-  //Create event
-  batteryRequest event(1, response, this);
-  //Insert event request into queue
-  insertEvent(&event);
+  if(isCameraConnected == true)
+  {
+    //Create event
+    batteryRequest event(1, response, this);
+    //Insert event request into queue
+    insertEvent(&event);
 
-  while (event.complete == false) {}
+    while (event.complete == false) {}
+  }
+  else
+  {
+    response->description = "Camera disconnected";
+  }
   if (response->status == true) {
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->value);
   } else {
@@ -299,13 +307,21 @@ void DataCamera::getiso_callback(
 {
   RCLCPP_INFO_STREAM(this->get_logger(), "Received request for iso setting");
   response->status = false;
+  response->value = 0;
+  response->description = "";
+  if(isCameraConnected == true)
+  {
+    //Create event
+    getIsoRequest event(1, response, this);
+    //Insert event request into queue
+    insertEvent(&event);
 
-  //Create event
-  getIsoRequest event(1, response, this);
-  //Insert event request into queue
-  insertEvent(&event);
-
-  while (event.complete == false) {}
+    while (event.complete == false) {}
+  }
+  else
+  {
+    response->description = "Camera disconnected";
+  }
   if (response->status == true) {
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->value);
   } else {
@@ -320,13 +336,20 @@ void DataCamera::setiso_callback(
 {
   RCLCPP_INFO_STREAM(this->get_logger(), "Received demand for iso setting: " << request->demand);
   response->status = false;
+  response->description = "";
+  if(isCameraConnected == true)
+  {
+    //Create event
+    setIsoRequest event(1, request, response, this);
+    //Insert event request into queue
+    insertEvent(&event);
 
-  //Create event
-  setIsoRequest event(1, request, response, this);
-  //Insert event request into queue
-  insertEvent(&event);
-
-  while (event.complete == false) {}
+    while (event.complete == false) {}
+  }
+  else
+  {
+    response->description = "Camera disconnected";
+  }
   if (response->status == true) {
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->status);
   } else {

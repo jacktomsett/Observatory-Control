@@ -3,7 +3,6 @@
 #include <chrono>
 #include <format>
 
-//TODO: Error checking on timestamps needs to be performed
 EventRequest::EventRequest()
 :priority(3),
   timestamp(std::format("{:%FT%TZ}",std::chrono::system_clock::now())),
@@ -21,7 +20,7 @@ EventRequest::EventRequest(int p, DataCamera * node)
 }
 
 EventRequest::~EventRequest() {}
-
+//TODO: Need to verify this operator actually works correctly.
 bool EventRequest::operator<(const EventRequest & b)
 {
   bool result;
