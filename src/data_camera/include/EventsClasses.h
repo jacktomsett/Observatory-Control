@@ -7,7 +7,7 @@ class EventRequest
 {
   public:
     EventRequest(); //TODO: Default constructor to allow dereived class to work. I feel like this should not be needed. Look into this
-    EventRequest(int, std::string, DataCamera* );
+    EventRequest(int, DataCamera* );
     ~EventRequest();
 
     // Overload < operator to allow sorting of event queue
@@ -23,7 +23,7 @@ class EventRequest
 class batteryRequest : public EventRequest
 {
     public:
-        batteryRequest(int, std::string, std::shared_ptr<interfaces::srv::IntStatus::Response>, DataCamera*);
+        batteryRequest(int, std::shared_ptr<interfaces::srv::IntStatus::Response>, DataCamera*);
         ~batteryRequest();
         void execute() override;
     private:
@@ -33,7 +33,7 @@ class batteryRequest : public EventRequest
 class getIsoRequest : public EventRequest
 {
     public:
-        getIsoRequest(int, std::string, std::shared_ptr<interfaces::srv::IntStatus::Response>, DataCamera*);
+        getIsoRequest(int, std::shared_ptr<interfaces::srv::IntStatus::Response>, DataCamera*);
         ~getIsoRequest();
         void execute() override;
     private:
@@ -43,7 +43,7 @@ class getIsoRequest : public EventRequest
 class setIsoRequest : public EventRequest
 {
     public:
-        setIsoRequest(int, std::string,std::shared_ptr<interfaces::srv::IntRequest::Request>,std::shared_ptr<interfaces::srv::IntRequest::Response> response,DataCamera*);
+        setIsoRequest(int,std::shared_ptr<interfaces::srv::IntRequest::Request>,std::shared_ptr<interfaces::srv::IntRequest::Response> response,DataCamera*);
         ~setIsoRequest();
         void execute() override;
     private:

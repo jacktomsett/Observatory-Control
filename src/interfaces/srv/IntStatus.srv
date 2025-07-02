@@ -1,5 +1,4 @@
 #Request
-string timestamp
 ---
 #Response
 int64 value

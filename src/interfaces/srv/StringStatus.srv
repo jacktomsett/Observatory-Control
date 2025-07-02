@@ -1,5 +1,5 @@
 #Request
-string timestamp
+
 ---
 #Response
 string value

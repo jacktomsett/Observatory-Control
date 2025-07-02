@@ -1,19 +1,24 @@
 #include "EventsClasses.h"
 #include "DataCamera.h"
+#include <chrono>
+#include <format>
+
 //TODO: Error checking on timestamps needs to be performed
 EventRequest::EventRequest()
 :priority(3),
-  timestamp("ERROR"),
+  timestamp(std::format("{:%FT%TZ}",std::chrono::system_clock::now())),
   complete(false),
   cameranode(nullptr)
 {}
 
-EventRequest::EventRequest(int p, std::string t, DataCamera * node)
+EventRequest::EventRequest(int p, DataCamera * node)
 :priority(p),
-  timestamp(t),
+  timestamp(std::format("{:%FT%TZ}",std::chrono::system_clock::now())),
   complete(false),
   cameranode(node)
-{}
+{
+
+}
 
 EventRequest::~EventRequest() {}
 
@@ -29,11 +34,11 @@ bool EventRequest::operator<(const EventRequest & b)
 }
 
 batteryRequest::batteryRequest(
-  int p, std::string t,
+  int p,
   std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera * node)
 {
   priority = p;
-  timestamp = t;
+  timestamp = std::format("{:%FT%TZ}",std::chrono::system_clock::now());
   complete = false;
   response = res;
   cameranode = node;
@@ -60,11 +65,11 @@ void batteryRequest::execute()
 }
 
 getIsoRequest::getIsoRequest(
-  int p, std::string t,
+  int p,
   std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera * node)
 {
   priority = p;
-  timestamp = t;
+  timestamp = std::format("{:%FT%TZ}",std::chrono::system_clock::now());
   complete = false;
   cameranode = node;
   response = res;
@@ -89,13 +94,12 @@ void getIsoRequest::execute()
 }
 
 setIsoRequest::setIsoRequest(
-  int p, std::string t,
+  int p,
   std::shared_ptr<interfaces::srv::IntRequest::Request> req,
   std::shared_ptr<interfaces::srv::IntRequest::Response> res, DataCamera * node)
 {
   priority = p;
-  timestamp = t;
-  complete = false;
+  timestamp = std::format("{:%FT%TZ}",std::chrono::system_clock::now());
   cameranode = node;
   request = req;
   response = res;

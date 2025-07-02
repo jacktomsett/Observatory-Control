@@ -22,7 +22,7 @@ target_include_directories(camera_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
-target_compile_features(camera_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(camera_node PUBLIC c_std_99 cxx_std_17 cxx_std_20)  # Require C99 and C++17
 ament_target_dependencies(
   camera_node
   "rclcpp"
