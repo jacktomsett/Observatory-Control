@@ -2,6 +2,8 @@
 #include "interfaces/msg/event.hpp"
 #include "interfaces/srv/int_status.hpp"
 #include "interfaces/srv/int_request.hpp"
+#include "interfaces/srv/string_status.hpp"
+#include "interfaces/srv/string_request.hpp"
 #include <gphoto2/gphoto2.h>
 #include <thread>
 #include <mutex>
@@ -39,6 +41,7 @@ private:
   rclcpp::Service < interfaces::srv::IntStatus > ::SharedPtr getisoservice;
   rclcpp::Service < interfaces::srv::IntRequest > ::SharedPtr setisoservice;
   rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getqualservice;
+  rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setqualservice;
 
         //Camera Thread
   std::thread cameraThread;
@@ -63,5 +66,7 @@ private:
   void getqual_callback(
     const std::shared_ptr < interfaces::srv::StringStatus::Request >,
     std::shared_ptr < interfaces::srv::StringStatus::Response >);
-
+  void setqual_callback(
+    const std::shared_ptr < interfaces::srv::StringRequest::Request >,
+    std::shared_ptr < interfaces::srv::StringRequest::Response >);
 };

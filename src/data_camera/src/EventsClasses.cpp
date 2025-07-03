@@ -147,3 +147,31 @@ void getImgQualityRequest::execute()
   }
   return;
 }
+
+setImgQualityRequest::setImgQualityRequest(int p, std::shared_ptr<interfaces::srv::StringRequest::Request> req,std::shared_ptr<interfaces::srv::StringRequest::Response> res, DataCamera * node)
+{
+  priority = p;
+  timestamp = std::format("{:%FT%TZ}",std::chrono::system_clock::now());
+  cameranode = node;
+  request = req;
+  response = res;
+}
+
+setImgQualityRequest::~setImgQualityRequest() {}
+
+void setImgQualityRequest::execute()
+{
+  std::string error;
+  const char * dem = (request->demand).c_str();
+  bool retVal = cameranode->set_menu_setting_value("imagequality", dem, &error);
+
+  if( (retVal == true))
+  {
+    response->status = true;
+    response->description = "";
+  } else {
+    response->status = false;
+    response->description = error;
+  }
+
+}

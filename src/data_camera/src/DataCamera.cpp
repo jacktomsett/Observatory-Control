@@ -34,6 +34,10 @@ DataCamera::DataCamera()
       "get_img_quality",
     std::bind(&DataCamera::getqual_callback, this, std::placeholders::_1, std::placeholders::_2)
   );
+  setqualservice = this->create_service<interfaces::srv::StringRequest>(
+      "set_img_quality",
+    std::bind(&DataCamera::setqual_callback, this, std::placeholders::_1, std::placeholders::_2)
+  );
 
     //Start camera thread
   cameraThread = std::thread(&DataCamera::cameraThreadFunction, this);
@@ -146,7 +150,7 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
   }
   //Check setting reported by camera matches new value
   if((ret == GP_OK) && (invalidDemand == false)) {
-    if (get_setting_value("iso", &value, err) == false) {
+    if (get_setting_value(key, &value, err) == false) {
       *err = "Failed to check updated setting value from camera:" + errorstring;
     }
   }
@@ -154,6 +158,7 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
     const_cast<char *>(value)) != 0) )
   {
     *err = "Failed to update setting on the camera: " + errorstring;
+    std::cout << demand << " : " << value << std::endl;
   }
 
   return  (ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
@@ -379,6 +384,32 @@ void DataCamera::getqual_callback(
   }
   if (response->status == true) {
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->value);
+  } else {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
+  }
+
+}
+
+void DataCamera::setqual_callback(
+  const std::shared_ptr<interfaces::srv::StringRequest::Request> request,
+  std::shared_ptr<interfaces::srv::StringRequest::Response> response)
+{
+  RCLCPP_INFO_STREAM(this->get_logger(),
+    "Received demand for image quality setting: " << request->demand);
+  response->status = false;
+  response->description = "";
+  if(isCameraConnected == true) {
+    //Create event
+    setImgQualityRequest event(1, request, response, this);
+    //Insert event request into queue
+    insertEvent(&event);
+
+    while (event.complete == false) {}
+  } else {
+    response->description = "Camera disconnected";
+  }
+  if (response->status == true) {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->status);
   } else {
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
   }
