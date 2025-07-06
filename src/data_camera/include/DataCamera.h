@@ -1,9 +1,11 @@
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 #include "interfaces/msg/event.hpp"
 #include "interfaces/srv/int_status.hpp"
 #include "interfaces/srv/int_request.hpp"
 #include "interfaces/srv/string_status.hpp"
 #include "interfaces/srv/string_request.hpp"
+#include "interfaces/action/sequence.hpp"
 #include <gphoto2/gphoto2.h>
 #include <thread>
 #include <mutex>
@@ -44,6 +46,8 @@ private:
   rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setqualservice;
   rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getfnumberservice;
   rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setfnumberservice;
+  rclcpp_action::Server <interfaces::action::Sequence> ::SharedPtr requestSequenceAction;
+  
 
         //Camera Thread
   std::thread cameraThread;
@@ -78,4 +82,9 @@ private:
   void setfnumber_callback(
     const std::shared_ptr < interfaces::srv::StringRequest::Request >,
     std::shared_ptr < interfaces::srv::StringRequest::Response >);
+
+        //Action Callbacks
+  rclcpp_action::GoalResponse sequenceGoal(const rclcpp_action::GoalUUID&, std::shared_ptr<const interfaces::action::Sequence::Goal>);
+  rclcpp_action::CancelResponse sequenceCancel( const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>>);
+  void sequence_accepted(const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>>);
 };
