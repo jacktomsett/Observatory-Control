@@ -5,14 +5,14 @@
 
 EventRequest::EventRequest()
 :priority(3),
-  timestamp(std::format("{:%FT%TZ}",std::chrono::system_clock::now())),
+  timestamp(std::format("{:%FT%TZ}", std::chrono::system_clock::now())),
   complete(false),
   cameranode(nullptr)
 {}
 
 EventRequest::EventRequest(int p, DataCamera * node)
 :priority(p),
-  timestamp(std::format("{:%FT%TZ}",std::chrono::system_clock::now())),
+  timestamp(std::format("{:%FT%TZ}", std::chrono::system_clock::now())),
   complete(false),
   cameranode(node)
 {
@@ -32,10 +32,12 @@ bool EventRequest::operator<(const EventRequest & b)
   return result;
 }
 
-batteryRequest::batteryRequest(int p,std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera * node)
+batteryRequest::batteryRequest(
+  int p, std::shared_ptr<interfaces::srv::IntStatus::Response> res,
+  DataCamera * node)
 {
   priority = p;
-  timestamp = std::format("{:%FT%TZ}",std::chrono::system_clock::now());
+  timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
   complete = false;
   response = res;
   cameranode = node;
@@ -66,7 +68,7 @@ getIsoRequest::getIsoRequest(
   int p, std::shared_ptr<interfaces::srv::IntStatus::Response> res, DataCamera * node)
 {
   priority = p;
-  timestamp = std::format("{:%FT%TZ}",std::chrono::system_clock::now());
+  timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
   complete = false;
   cameranode = node;
   response = res;
@@ -91,10 +93,12 @@ void getIsoRequest::execute()
   return;
 }
 
-setIsoRequest::setIsoRequest(int p, std::shared_ptr<interfaces::srv::IntRequest::Request> req,std::shared_ptr<interfaces::srv::IntRequest::Response> res, DataCamera * node)
+setIsoRequest::setIsoRequest(
+  int p, std::shared_ptr<interfaces::srv::IntRequest::Request> req,
+  std::shared_ptr<interfaces::srv::IntRequest::Response> res, DataCamera * node)
 {
   priority = p;
-  timestamp = std::format("{:%FT%TZ}",std::chrono::system_clock::now());
+  timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
   cameranode = node;
   request = req;
   response = res;
@@ -109,8 +113,7 @@ void setIsoRequest::execute()
   const char * dem = (demandstring).c_str();
   bool retVal = cameranode->set_menu_setting_value("iso", dem, &error);
 
-  if( (retVal == true))
-  {
+  if( (retVal == true)) {
     response->status = true;
     response->description = "";
   } else {
@@ -120,16 +123,18 @@ void setIsoRequest::execute()
 
 }
 
-getImgQualityRequest::getImgQualityRequest(int p, std::shared_ptr<interfaces::srv::StringStatus::Response> res, DataCamera* node)
+getImgQualityRequest::getImgQualityRequest(
+  int p,
+  std::shared_ptr<interfaces::srv::StringStatus::Response> res, DataCamera * node)
 {
   priority = p;
-  timestamp = std::format("{:%FT%TZ}",std::chrono::system_clock::now());
+  timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
   complete = false;
   response = res;
   cameranode = node;
 }
 
-getImgQualityRequest::~getImgQualityRequest(){}
+getImgQualityRequest::~getImgQualityRequest() {}
 
 void getImgQualityRequest::execute()
 {
@@ -148,10 +153,13 @@ void getImgQualityRequest::execute()
   return;
 }
 
-setImgQualityRequest::setImgQualityRequest(int p, std::shared_ptr<interfaces::srv::StringRequest::Request> req,std::shared_ptr<interfaces::srv::StringRequest::Response> res, DataCamera * node)
+setImgQualityRequest::setImgQualityRequest(
+  int p,
+  std::shared_ptr<interfaces::srv::StringRequest::Request> req,
+  std::shared_ptr<interfaces::srv::StringRequest::Response> res, DataCamera * node)
 {
   priority = p;
-  timestamp = std::format("{:%FT%TZ}",std::chrono::system_clock::now());
+  timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
   cameranode = node;
   request = req;
   response = res;
@@ -165,13 +173,70 @@ void setImgQualityRequest::execute()
   const char * dem = (request->demand).c_str();
   bool retVal = cameranode->set_menu_setting_value("imagequality", dem, &error);
 
-  if( (retVal == true))
-  {
+  if( (retVal == true)) {
     response->status = true;
     response->description = "";
   } else {
     response->status = false;
     response->description = error;
   }
+}
 
+getFNumberRequest::getFNumberRequest(
+  int p,
+  std::shared_ptr<interfaces::srv::StringStatus::Response> res, DataCamera * node)
+{
+  priority = p;
+  timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
+  complete = false;
+  response = res;
+  cameranode = node;
+}
+
+getFNumberRequest::~getFNumberRequest() {}
+
+void getFNumberRequest::execute()
+{
+  char * fNumberSettingValue;
+  std::string error = "";
+  bool retval = cameranode->get_setting_value("f-number", &fNumberSettingValue, &error);
+  if (retval == true) {
+    response->value = std::string(fNumberSettingValue);
+    response->description = "";
+    response->status = true;
+  } else {
+    response->value = 0.0;
+    response->description = error;
+    response->status = false;
+  }
+  return;
+}
+
+setFNumberRequest::setFNumberRequest(
+  int p,
+  std::shared_ptr<interfaces::srv::StringRequest::Request> req,
+  std::shared_ptr<interfaces::srv::StringRequest::Response> res, DataCamera * node)
+{
+  priority = p;
+  timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
+  cameranode = node;
+  request = req;
+  response = res;
+}
+
+setFNumberRequest::~setFNumberRequest() {}
+
+void setFNumberRequest::execute()
+{
+  std::string error;
+  const char * dem = (request->demand).c_str();
+  bool retVal = cameranode->set_menu_setting_value("f-number", dem, &error);
+
+  if( (retVal == true)) {
+    response->status = true;
+    response->description = "";
+  } else {
+    response->status = false;
+    response->description = error;
+  }
 }

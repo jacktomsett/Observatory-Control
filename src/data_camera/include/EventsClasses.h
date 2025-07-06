@@ -1,4 +1,6 @@
 #include <string>
+#include "interfaces/srv/double_status.hpp"
+#include "interfaces/srv/double_request.hpp"
 #include "interfaces/srv/int_status.hpp"
 #include "interfaces/srv/int_request.hpp"
 #include "interfaces/srv/string_status.hpp"
@@ -71,6 +73,29 @@ public:
   setImgQualityRequest(int, std::shared_ptr < interfaces::srv::StringRequest::Request >,
     std::shared_ptr < interfaces::srv::StringRequest::Response > response, DataCamera *);
   ~setImgQualityRequest();
+  void execute() override;
+private:
+  std::shared_ptr < interfaces::srv::StringRequest::Request > request;
+  std::shared_ptr < interfaces::srv::StringRequest::Response > response;
+};
+
+class getFNumberRequest: public EventRequest
+{
+public:
+  getFNumberRequest(int, std::shared_ptr < interfaces::srv::StringStatus::Response >,
+    DataCamera *);
+  ~getFNumberRequest();
+  void execute() override;
+private:
+  std::shared_ptr < interfaces::srv::StringStatus::Response > response;
+};
+
+class setFNumberRequest: public EventRequest
+{
+public:
+  setFNumberRequest(int, std::shared_ptr < interfaces::srv::StringRequest::Request >,
+    std::shared_ptr < interfaces::srv::StringRequest::Response > response, DataCamera *);
+  ~setFNumberRequest();
   void execute() override;
 private:
   std::shared_ptr < interfaces::srv::StringRequest::Request > request;

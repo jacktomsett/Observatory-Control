@@ -16,6 +16,8 @@ find_package(sensor_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Event.msg"
+  "srv/DoubleStatus.srv"
+  "srv/DoubleRequest.srv"
   "srv/IntStatus.srv"
   "srv/IntRequest.srv"
   "srv/StringStatus.srv"

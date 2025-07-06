@@ -1,0 +1,6 @@
+#Request
+---
+#Response
+float64 value
+bool status
+string description

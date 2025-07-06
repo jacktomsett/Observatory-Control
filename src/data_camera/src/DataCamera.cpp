@@ -38,6 +38,14 @@ DataCamera::DataCamera()
       "set_img_quality",
     std::bind(&DataCamera::setqual_callback, this, std::placeholders::_1, std::placeholders::_2)
   );
+  getfnumberservice = this->create_service<interfaces::srv::StringStatus>(
+      "get_f_number",
+    std::bind(&DataCamera::getfnumber_callback, this, std::placeholders::_1, std::placeholders::_2)
+  );
+  setfnumberservice = this->create_service<interfaces::srv::StringRequest>(
+      "set_f_number",
+    std::bind(&DataCamera::setfnumber_callback, this, std::placeholders::_1, std::placeholders::_2)
+  );
 
     //Start camera thread
   cameraThread = std::thread(&DataCamera::cameraThreadFunction, this);
@@ -387,7 +395,6 @@ void DataCamera::getqual_callback(
   } else {
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
   }
-
 }
 
 void DataCamera::setqual_callback(
@@ -413,5 +420,54 @@ void DataCamera::setqual_callback(
   } else {
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
   }
+}
 
+void DataCamera::getfnumber_callback(
+  const std::shared_ptr<interfaces::srv::StringStatus::Request> request,
+  std::shared_ptr<interfaces::srv::StringStatus::Response> response)
+{
+  RCLCPP_INFO_STREAM(this->get_logger(), "Received request for f-number setting");
+  response->status = false;
+  response->value = 0.0;
+  response->description = "";
+  if(isCameraConnected == true) {
+    //Create event
+    getFNumberRequest event(1, response, this);
+    //Insert event request into queue
+    insertEvent(&event);
+
+    while (event.complete == false) {}
+  } else {
+    response->description = "Camera disconnected";
+  }
+  if (response->status == true) {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->value);
+  } else {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
+  }
+}
+
+void DataCamera::setfnumber_callback(
+  const std::shared_ptr<interfaces::srv::StringRequest::Request> request,
+  std::shared_ptr<interfaces::srv::StringRequest::Response> response)
+{
+  RCLCPP_INFO_STREAM(this->get_logger(),
+    "Received demand for f-number setting: " << request->demand);
+  response->status = false;
+  response->description = "";
+  if(isCameraConnected == true) {
+    //Create event
+    setFNumberRequest event(1, request, response, this);
+    //Insert event request into queue
+    insertEvent(&event);
+
+    while (event.complete == false) {}
+  } else {
+    response->description = "Camera disconnected";
+  }
+  if (response->status == true) {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->status);
+  } else {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
+  }
 }

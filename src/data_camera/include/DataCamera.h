@@ -42,6 +42,8 @@ private:
   rclcpp::Service < interfaces::srv::IntRequest > ::SharedPtr setisoservice;
   rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getqualservice;
   rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setqualservice;
+  rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getfnumberservice;
+  rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setfnumberservice;
 
         //Camera Thread
   std::thread cameraThread;
@@ -67,6 +69,13 @@ private:
     const std::shared_ptr < interfaces::srv::StringStatus::Request >,
     std::shared_ptr < interfaces::srv::StringStatus::Response >);
   void setqual_callback(
+    const std::shared_ptr < interfaces::srv::StringRequest::Request >,
+    std::shared_ptr < interfaces::srv::StringRequest::Response >);
+   //TODO: It would be better if the following two services accepted and reported doubles rather than strings. The camera reports the value as strings so they would need to be formatted. This would require modifying the functions that communicate with the camera
+  void getfnumber_callback(
+    const std::shared_ptr < interfaces::srv::StringStatus::Request >,
+    std::shared_ptr < interfaces::srv::StringStatus::Response >);
+  void setfnumber_callback(
     const std::shared_ptr < interfaces::srv::StringRequest::Request >,
     std::shared_ptr < interfaces::srv::StringRequest::Response >);
 };
