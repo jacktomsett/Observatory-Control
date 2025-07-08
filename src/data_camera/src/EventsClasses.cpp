@@ -25,9 +25,9 @@ bool EventRequest::operator<(const EventRequest & b)
 {
   bool result;
   if (b.priority == this->priority) {
-    result = (this->timestamp < b.timestamp);
+    result = (this->timestamp > b.timestamp);
   } else {
-    result = (this->priority) < b.priority;
+    result = (this->priority) > b.priority;
   }
   return result;
 }
@@ -246,6 +246,7 @@ sequencePhotoRequest::sequencePhotoRequest(
   std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> gh,
   DataCamera * node)
 {
+  std::cout << "Entered sequencePhotoRequest constructor" << std::endl;
   priority = p;
   photoNumber = n;
   timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
@@ -267,6 +268,7 @@ void sequencePhotoRequest::execute()
 
   //TODO: Placeholder. Need to implement capturing image
   std::cout << "DataCamera node attempting capture (placeholder)" << std::endl;
+  sleep(5);
   bool ret = false; //Again, placeholder. Should be return value of capture function
   //Update feedback
   currentImage++;
@@ -292,10 +294,11 @@ generateSequence::generateSequence(
   const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> gh,
   DataCamera * node)
 {
+  std::cout << "Entered generateSequence constructor" << std::endl;
   priority = p;
   timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
-  ID = rclcpp_action::to_string(goalHandle->get_goal_id());
   goalHandle = gh;
+  ID = rclcpp_action::to_string(goalHandle->get_goal_id());
   cameranode = node;
 }
 
@@ -303,9 +306,10 @@ generateSequence::~generateSequence() {}
 
 void generateSequence::execute()
 {
+  std::cout << "Entered generateSequence::execute()" << std::endl;
   const auto goal = goalHandle->get_goal();
-  for (int i = 1; i < goal->length; i++) {
-    sequencePhotoRequest event(2, i, ID, goalHandle, cameranode);
-    cameranode->insertEvent(&event);
+  for (int i = 1; i <= goal->length; i++) {
+    auto eventptr = std::make_shared<sequencePhotoRequest>(2, i, ID, goalHandle, cameranode);
+    cameranode->insertEvent(eventptr);
   }
 }

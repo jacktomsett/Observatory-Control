@@ -17,7 +17,7 @@ public:
   DataCamera();
   ~DataCamera();
 
-  void insertEvent(EventRequest *);
+  void insertEvent(std::shared_ptr<EventRequest>);
   bool get_setting_value(char *, char **, std::string *);
   bool set_menu_setting_value(char *, const char *, std::string *);
 
@@ -25,7 +25,7 @@ private:
         //State tracking variables
   bool shutdownRequest;
   bool isCameraConnected;
-  std::vector < EventRequest * > eventQueue;
+  std::vector < std::shared_ptr<EventRequest>> eventQueue;
   std::mutex queueLock;
 
         //libgphoto variables and functions

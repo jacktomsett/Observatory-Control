@@ -1,5 +1,6 @@
 {
     "configurations": [
+        
         {
             "name": "C/C++: gcc build and debug active file",
             "type": "cppdbg",
@@ -25,6 +26,11 @@
             ],
             "preLaunchTask": "C/C++: gcc build active file",
             "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "ROS2: Attach",
+            "type": "ros2",
+            "request": "attach"
         }
     ],
     "version": "2.0.0"

@@ -201,8 +201,8 @@ void DataCamera::contextStatusFunction(GPContext *context, const char *str, void
 
 void DataCamera::cameraThreadFunction()
 {
-      //Variable to hold current event
-  EventRequest * currentEvent;
+      //Pointer to hold current event
+  std::shared_ptr<EventRequest> currentEvent(nullptr);
 
 
   while(shutdownRequest == false) {
@@ -224,7 +224,7 @@ void DataCamera::cameraThreadFunction()
       queueLock.unlock();
 
           //Perform event function
-      currentEvent->execute();
+      currentEvent->execute();            //FIXME: Memory leak here for events inserted by the action callback that declared with new. Should modify this function to delete them or learn how to use smart pointers and change the whole event queue to use them
       currentEvent->complete = true;     //TODO For some reason it is bad practice to directly modify class fields from outside of the class. It is supposed to be done via getter and settor functions. Also maybe this is better controlled by the execute function itself, maybe not (At first I thought not because I dont want the callback function doing anything while the execute function is still running). Either way I havent put any thought into it
 
     }
@@ -289,8 +289,9 @@ void DataCamera::checkCameraConnection()
 
 }
 
-void DataCamera::insertEvent(EventRequest * event)
+void DataCamera::insertEvent(std::shared_ptr<EventRequest> event)
 {
+  std::cout << "Entered insertEvent function" << std::endl;
   queueLock.lock();
   eventQueue.push_back(event);
   sort(eventQueue.begin(), eventQueue.end());
@@ -312,11 +313,11 @@ void DataCamera::battery_callback(
 
   if(isCameraConnected == true) {
     //Create event
-    batteryRequest event(1, response, this);
+    auto eventptr = std::make_shared<batteryRequest>(1, response, this);
     //Insert event request into queue
-    insertEvent(&event);
+    insertEvent(eventptr);
 
-    while (event.complete == false) {}
+    while (eventptr->complete == false) {}
   } else {
     response->description = "Camera disconnected";
   }
@@ -338,11 +339,11 @@ void DataCamera::getiso_callback(
   response->description = "";
   if(isCameraConnected == true) {
     //Create event
-    getIsoRequest event(1, response, this);
+    auto eventptr = std::make_shared<getIsoRequest>(1, response, this);
     //Insert event request into queue
-    insertEvent(&event);
+    insertEvent(eventptr);
 
-    while (event.complete == false) {}
+    while (eventptr->complete == false) {}
   } else {
     response->description = "Camera disconnected";
   }
@@ -363,11 +364,11 @@ void DataCamera::setiso_callback(
   response->description = "";
   if(isCameraConnected == true) {
     //Create event
-    setIsoRequest event(1, request, response, this);
+    auto eventptr = std::make_shared<setIsoRequest>(1, request, response, this);
     //Insert event request into queue
-    insertEvent(&event);
+    insertEvent(eventptr);
 
-    while (event.complete == false) {}
+    while (eventptr->complete == false) {}
   } else {
     response->description = "Camera disconnected";
   }
@@ -390,11 +391,11 @@ void DataCamera::getqual_callback(
   response->description = "";
   if(isCameraConnected == true) {
     //Create event
-    getImgQualityRequest event(1, response, this);
+    auto eventptr = std::make_shared<getImgQualityRequest>(1, response, this);
     //Insert event request into queue
-    insertEvent(&event);
+    insertEvent(eventptr);
 
-    while (event.complete == false) {}
+    while (eventptr->complete == false) {}
   } else {
     response->description = "Camera disconnected";
   }
@@ -415,11 +416,11 @@ void DataCamera::setqual_callback(
   response->description = "";
   if(isCameraConnected == true) {
     //Create event
-    setImgQualityRequest event(1, request, response, this);
+    auto eventptr = std::make_shared<setImgQualityRequest>(1, request, response, this);
     //Insert event request into queue
-    insertEvent(&event);
+    insertEvent(eventptr);
 
-    while (event.complete == false) {}
+    while (eventptr->complete == false) {}
   } else {
     response->description = "Camera disconnected";
   }
@@ -440,11 +441,11 @@ void DataCamera::getfnumber_callback(
   response->description = "";
   if(isCameraConnected == true) {
     //Create event
-    getFNumberRequest event(1, response, this);
+    auto eventptr = std::make_shared<getFNumberRequest>(1, response, this);
     //Insert event request into queue
-    insertEvent(&event);
+    insertEvent(eventptr);
 
-    while (event.complete == false) {}
+    while (eventptr->complete == false) {}
   } else {
     response->description = "Camera disconnected";
   }
@@ -465,11 +466,11 @@ void DataCamera::setfnumber_callback(
   response->description = "";
   if(isCameraConnected == true) {
     //Create event
-    setFNumberRequest event(1, request, response, this);
+    auto eventptr = std::make_shared<setFNumberRequest>(1, request, response, this);
     //Insert event request into queue
-    insertEvent(&event);
+    insertEvent(eventptr);
 
-    while (event.complete == false) {}
+    while (eventptr->complete == false) {}
   } else {
     response->description = "Camera disconnected";
   }
@@ -511,8 +512,9 @@ rclcpp_action::CancelResponse DataCamera::sequenceCancel(
 void DataCamera::sequence_accepted(
   const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goalHandle)
 {
+  std::cout << "Entered sequence_accepted function" << std::endl;
   //This callback needs to finish quickly so it doesn't freeze up the system, so instead of populating the event queue with all of
   //the photo requests here, we will add in a single event that in turn will generste the rest of the events
-  generateSequence event(1, goalHandle, this);
-  insertEvent(&event);
+  auto eventptr = std::make_shared<generateSequence>(1, goalHandle, this);
+  insertEvent(eventptr);
 }
