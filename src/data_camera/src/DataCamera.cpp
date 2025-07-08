@@ -501,7 +501,7 @@ rclcpp_action::CancelResponse DataCamera::sequenceCancel(
   queueLock.lock();
   for(int i = 0; i < eventQueue.size(); i++) {
     if (goalID == eventQueue[i]->ID) {
-      eventQueue.erase(eventQueue.begin() + (i - 1));
+      eventQueue.erase(eventQueue.begin() + i);
       i--;
     }
   }

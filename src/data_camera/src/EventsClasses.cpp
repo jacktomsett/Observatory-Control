@@ -280,7 +280,7 @@ void sequencePhotoRequest::execute()
   goalHandle->publish_feedback(feedback);
 
   //Check if goal is complete
-  if(photoNumber == goal->length) { //TODO: Alternatively this could be currentImage == goal-> length. Or both. A mechanism should be put in place in case the images for some reason end up out of order in the event queue
+  if(currentImage == goal->length) { //TODO: Alternatively this could be currentImage == goal-> length. Or both. A mechanism should be put in place in case the images for some reason end up out of order in the event queue
     auto exitStatus = std::make_shared<interfaces::action::Sequence::Result>();
     exitStatus->confirmcomplete = "Sequence complete";
     exitStatus->successes = feedback->successes;
