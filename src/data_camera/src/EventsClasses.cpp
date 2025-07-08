@@ -242,7 +242,7 @@ void setFNumberRequest::execute()
 }
 
 sequencePhotoRequest::sequencePhotoRequest(
-  int p, int n, std::string goalID, 
+  int p, int n, std::string goalID,
   std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> gh,
   DataCamera * node)
 {
@@ -270,35 +270,31 @@ void sequencePhotoRequest::execute()
   bool ret = false; //Again, placeholder. Should be return value of capture function
   //Update feedback
   currentImage++;
-  if (ret == true)
-  {
+  if (ret == true) {
     successes++;
-  }
-  else
-  {
+  } else {
     fails++;
   }
   goalHandle->publish_feedback(feedback);
 
   //Check if goal is complete
-  if(photoNumber == goal->length) //TODO: Alternatively this could be currentImage == goal-> length. Or both. A mechanism should be put in place in case the images for some reason end up out of order in the event queue
-  {
+  if(photoNumber == goal->length) { //TODO: Alternatively this could be currentImage == goal-> length. Or both. A mechanism should be put in place in case the images for some reason end up out of order in the event queue
     auto exitStatus = std::make_shared<interfaces::action::Sequence::Result>();
     exitStatus->confirmcomplete = "Sequence complete";
     exitStatus->successes = feedback->successes;
     exitStatus->fails = feedback->fails;
     goalHandle->succeed(exitStatus);
-  }  
+  }
 }
 
 generateSequence::generateSequence(
-  int p, std::string goalID, 
+  int p,
   const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> gh,
   DataCamera * node)
 {
   priority = p;
   timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
-  ID = goalID;
+  ID = rclcpp_action::to_string(goalHandle->get_goal_id());
   goalHandle = gh;
   cameranode = node;
 }
@@ -308,9 +304,8 @@ generateSequence::~generateSequence() {}
 void generateSequence::execute()
 {
   const auto goal = goalHandle->get_goal();
-  for (int i = 1; i < goal-> length; i++)
-  {
-    sequencePhotoRequest event(2,i,ID,goalHandle,cameranode);
+  for (int i = 1; i < goal->length; i++) {
+    sequencePhotoRequest event(2, i, ID, goalHandle, cameranode);
     cameranode->insertEvent(&event);
   }
 }

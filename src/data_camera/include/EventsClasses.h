@@ -6,6 +6,7 @@
 #include "interfaces/srv/string_status.hpp"
 #include "interfaces/srv/string_request.hpp"
 #include "interfaces/action/sequence.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 
 class DataCamera; //Forward declaration
 class EventRequest
@@ -118,7 +119,7 @@ class sequencePhotoRequest: public EventRequest
 class generateSequence : public EventRequest
 {
   public:
-    generateSequence(int, std::string, const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>>, DataCamera *);
+    generateSequence(int, const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>>, DataCamera *);
     ~generateSequence();
     void execute();
   private:

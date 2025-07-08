@@ -46,7 +46,13 @@ DataCamera::DataCamera()
       "set_f_number",
     std::bind(&DataCamera::setfnumber_callback, this, std::placeholders::_1, std::placeholders::_2)
   );
-
+    //Initialise actions
+  requestSequenceAction = rclcpp_action::create_server<interfaces::action::Sequence>(
+    this, "sequence",
+    std::bind(&DataCamera::sequenceGoal,this, std::placeholders::_1,std::placeholders::_2),
+    std::bind(&DataCamera::sequenceCancel,this,std::placeholders::_1),
+    std::bind(&DataCamera::sequence_accepted,this,std::placeholders::_1)
+  );
     //Start camera thread
   cameraThread = std::thread(&DataCamera::cameraThreadFunction, this);
 
@@ -292,6 +298,8 @@ void DataCamera::insertEvent(EventRequest * event)
   return;
 }
 
+//FIXME: The priority of all events needs to be checked. It was treated like a placeholder before but now that the ability to request a sequence is being added they need to be checked.
+//TODO: Following on from above point, any services that change a setting the camera will need to check if a sequence is currently active and if so these should be rejected. This should be done after the sequence accept logic is built out
 void DataCamera::battery_callback(
   const std::shared_ptr<interfaces::srv::IntStatus::Request> request,
   std::shared_ptr<interfaces::srv::IntStatus::Response> response)
@@ -470,4 +478,41 @@ void DataCamera::setfnumber_callback(
   } else {
     RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
   }
+}
+
+rclcpp_action::GoalResponse DataCamera::sequenceGoal(
+  const rclcpp_action::GoalUUID & uuid,
+  std::shared_ptr<const interfaces::action::Sequence::Goal> goal)
+{
+  RCLCPP_INFO_STREAM(this->get_logger(),
+    "Received request for photo sequence containing " << goal->length << " photos");
+  //TODO: Placeholder function. This just accepts all goals. Unlike the previous iteration I do think this wouldnt actually break anything as new sequences would just get queued for after existing sequences. Regardless ultimatly this should be overhauled and a state flag added to DataCamera that tracks what sequences have currently been accepted and rejects new ones unless they are sent with high priority or have explicitly said they are happy to wait until the current one finishes
+  (void) uuid;
+  RCLCPP_INFO_STREAM(this->get_logger(), "Sequence request accepted");
+  return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+}
+
+rclcpp_action::CancelResponse DataCamera::sequenceCancel(
+  const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goalHandle)
+{
+  RCLCPP_INFO_STREAM(this->get_logger(), "Cancelling photo sequence");
+  std::string goalID = rclcpp_action::to_string(goalHandle->get_goal_id());
+  queueLock.lock();
+  for(int i = 0; i < eventQueue.size(); i++) {
+    if (goalID == eventQueue[i]->ID) {
+      eventQueue.erase(eventQueue.begin() + (i - 1));
+      i--;
+    }
+  }
+  queueLock.unlock();
+  return rclcpp_action::CancelResponse::ACCEPT;
+}
+
+void DataCamera::sequence_accepted(
+  const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goalHandle)
+{
+  //This callback needs to finish quickly so it doesn't freeze up the system, so instead of populating the event queue with all of
+  //the photo requests here, we will add in a single event that in turn will generste the rest of the events
+  generateSequence event(1, goalHandle, this);
+  insertEvent(&event);
 }
