@@ -17,6 +17,7 @@ public:
   DataCamera();
   ~DataCamera();
 
+  void insertEvent(EventRequest *);
   bool get_setting_value(char *, char **, std::string *);
   bool set_menu_setting_value(char *, const char *, std::string *);
 
@@ -57,7 +58,6 @@ private:
   void connectToCamera();
   void disconnectCamera();
   void checkCameraConnection();
-  void insertEvent(EventRequest *);
 
         //Service Callbacks
   void battery_callback(
@@ -87,4 +87,5 @@ private:
   rclcpp_action::GoalResponse sequenceGoal(const rclcpp_action::GoalUUID&, std::shared_ptr<const interfaces::action::Sequence::Goal>);
   rclcpp_action::CancelResponse sequenceCancel( const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>>);
   void sequence_accepted(const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>>);
+  
 };

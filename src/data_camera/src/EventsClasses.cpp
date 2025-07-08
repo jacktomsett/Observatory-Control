@@ -240,3 +240,77 @@ void setFNumberRequest::execute()
     response->description = error;
   }
 }
+
+sequencePhotoRequest::sequencePhotoRequest(
+  int p, int n, std::string goalID, 
+  std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> gh,
+  DataCamera * node)
+{
+  priority = p;
+  photoNumber = n;
+  timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
+  ID = goalID;
+  goalHandle = gh;
+  cameranode = node;
+}
+
+sequencePhotoRequest::~sequencePhotoRequest() {}
+
+void sequencePhotoRequest::execute()
+{
+  //Fetch goal and feedback. //TODO: This is copied from previous iteration (and ultimately before that the ROS2 tutorial), I want to understand exactly what it is doing a bit better
+  const auto goal = goalHandle->get_goal();//Also while doing addressing the above comment, decide whether it would be better to generate these pointers in the generateSequence class and pass them to each of the photoRequest class objects
+  auto feedback = std::make_shared<interfaces::action::Sequence::Feedback>();
+  auto & currentImage = feedback->current;
+  auto & successes = feedback->successes;
+  auto & fails = feedback->fails;
+
+  //TODO: Placeholder. Need to implement capturing image
+  std::cout << "DataCamera node attempting capture (placeholder)" << std::endl;
+  bool ret = false; //Again, placeholder. Should be return value of capture function
+  //Update feedback
+  currentImage++;
+  if (ret == true)
+  {
+    successes++;
+  }
+  else
+  {
+    fails++;
+  }
+  goalHandle->publish_feedback(feedback);
+
+  //Check if goal is complete
+  if(photoNumber == goal->length) //TODO: Alternatively this could be currentImage == goal-> length. Or both. A mechanism should be put in place in case the images for some reason end up out of order in the event queue
+  {
+    auto exitStatus = std::make_shared<interfaces::action::Sequence::Result>();
+    exitStatus->confirmcomplete = "Sequence complete";
+    exitStatus->successes = feedback->successes;
+    exitStatus->fails = feedback->fails;
+    goalHandle->succeed(exitStatus);
+  }  
+}
+
+generateSequence::generateSequence(
+  int p, std::string goalID, 
+  const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> gh,
+  DataCamera * node)
+{
+  priority = p;
+  timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
+  ID = goalID;
+  goalHandle = gh;
+  cameranode = node;
+}
+
+generateSequence::~generateSequence() {}
+
+void generateSequence::execute()
+{
+  const auto goal = goalHandle->get_goal();
+  for (int i = 1; i < goal-> length; i++)
+  {
+    sequencePhotoRequest event(2,i,ID,goalHandle,cameranode);
+    cameranode->insertEvent(&event);
+  }
+}

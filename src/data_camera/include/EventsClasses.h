@@ -5,6 +5,7 @@
 #include "interfaces/srv/int_request.hpp"
 #include "interfaces/srv/string_status.hpp"
 #include "interfaces/srv/string_request.hpp"
+#include "interfaces/action/sequence.hpp"
 
 class DataCamera; //Forward declaration
 class EventRequest
@@ -19,6 +20,7 @@ public:
 
   int priority;
   std::string timestamp;
+  std::string ID;
   bool complete;
   DataCamera * cameranode;
   virtual void execute() = 0;
@@ -100,4 +102,25 @@ public:
 private:
   std::shared_ptr < interfaces::srv::StringRequest::Request > request;
   std::shared_ptr < interfaces::srv::StringRequest::Response > response;
+};
+
+class sequencePhotoRequest: public EventRequest
+{
+  public:
+    sequencePhotoRequest(int, int, std::string, std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>>, DataCamera *);
+    ~sequencePhotoRequest();
+    void execute() override;
+  private:
+    std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goalHandle;
+    int photoNumber;
+};
+
+class generateSequence : public EventRequest
+{
+  public:
+    generateSequence(int, std::string, const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>>, DataCamera *);
+    ~generateSequence();
+    void execute();
+  private:
+    std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goalHandle;
 };
