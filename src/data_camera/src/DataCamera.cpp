@@ -8,6 +8,9 @@ DataCamera::DataCamera()
     //Initialise variables
   shutdownRequest = false;
   isCameraConnected = false;
+  currentSequenceId = "";
+  currentSequenceSuccesses = 0;
+  currentSequenceFails = 0;
 
     //Initialise libgphoto contexts
   context = gp_context_new();
@@ -224,7 +227,8 @@ void DataCamera::cameraThreadFunction()
       queueLock.unlock();
 
           //Perform event function
-      currentEvent->execute();            //FIXME: Memory leak here for events inserted by the action callback that declared with new. Should modify this function to delete them or learn how to use smart pointers and change the whole event queue to use them
+      currentEvent->execute();
+      //Signal to any waiting processes that the event has finished executing
       currentEvent->complete = true;     //TODO For some reason it is bad practice to directly modify class fields from outside of the class. It is supposed to be done via getter and settor functions. Also maybe this is better controlled by the execute function itself, maybe not (At first I thought not because I dont want the callback function doing anything while the execute function is still running). Either way I havent put any thought into it
 
     }
@@ -291,15 +295,15 @@ void DataCamera::checkCameraConnection()
 
 void DataCamera::insertEvent(std::shared_ptr<EventRequest> event)
 {
-  //FIXME: Events are not being sorted according to timestamp correctly. Lower priority does skip to the front of the queue but timestamps seem to be all over the place
-  std::cout << "Entered insertEvent function" << std::endl;
+
   queueLock.lock();
   eventQueue.push_back(event);
-  sort(eventQueue.begin(), eventQueue.end());
+  sort(eventQueue.begin(), eventQueue.end(),[](auto ptr1,auto ptr2){return *ptr1 < *ptr2;});
   queueLock.unlock();
   return;
 }
 
+//FIXME: After making fixes to the sequence action all the services are returning fails.
 //FIXME: The priority of all events needs to be checked. It was treated like a placeholder before but now that the ability to request a sequence is being added they need to be checked.
 //TODO: Following on from above point, any services that change a setting the camera will need to check if a sequence is currently active and if so these should be rejected. This should be done after the sequence accept logic is built out
 void DataCamera::battery_callback(

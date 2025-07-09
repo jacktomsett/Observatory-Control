@@ -21,6 +21,12 @@ public:
   bool get_setting_value(char *, char **, std::string *);
   bool set_menu_setting_value(char *, const char *, std::string *);
 
+  //TODO: Bad practice to have public class fields, should be replaced with getter and setters
+  std::string currentSequenceId;
+  int currentSequencePhotoNumber;
+  int currentSequenceSuccesses;
+  int currentSequenceFails;
+
 private:
         //State tracking variables
   bool shutdownRequest;

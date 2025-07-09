@@ -20,7 +20,6 @@ EventRequest::EventRequest(int p, DataCamera * node)
 }
 
 EventRequest::~EventRequest() {}
-//TODO: Need to verify this operator actually works correctly.
 bool EventRequest::operator<(const EventRequest & b)
 {
   bool result;
@@ -261,27 +260,32 @@ void sequencePhotoRequest::execute()
 {
   //Fetch goal and feedback. //TODO: This is copied from previous iteration (and ultimately before that the ROS2 tutorial), I want to understand exactly what it is doing a bit better
   const auto goal = goalHandle->get_goal();//Also while doing addressing the above comment, decide whether it would be better to generate these pointers in the generateSequence class and pass them to each of the photoRequest class objects
-  //FIXME: The following values are not being preseved across different event objects. I think the best approach would be for the DataCamera class to track them
   auto feedback = std::make_shared<interfaces::action::Sequence::Feedback>();
-  auto & currentImage = feedback->current;
-  auto & successes = feedback->successes;
-  auto & fails = feedback->fails;
+
 
   //TODO: Placeholder. Need to implement capturing image
   std::cout << "DataCamera node attempting capture (placeholder)" << std::endl;
   sleep(5);
   bool ret = false; //Again, placeholder. Should be return value of capture function
-  //Update feedback
-  currentImage++;
+  //Update counts
+  cameranode->currentSequencePhotoNumber++;
   if (ret == true) {
-    successes++;
+    cameranode->currentSequenceSuccesses++;
   } else {
-    fails++;
+    cameranode->currentSequenceFails++;
   }
+  feedback->current = cameranode->currentSequencePhotoNumber;
+  feedback->successes = cameranode->currentSequenceSuccesses;
+  feedback->fails = cameranode->currentSequenceFails;
   goalHandle->publish_feedback(feedback);
 
   //Check if goal is complete
-  if(currentImage == goal->length) { //TODO: Alternatively this could be currentImage == goal-> length. Or both. A mechanism should be put in place in case the images for some reason end up out of order in the event queue
+  if(cameranode->currentSequencePhotoNumber == goal->length) { //TODO: Alternatively this could be currentImage == goal-> length. Or both. A mechanism should be put in place in case the images for some reason end up out of order in the event queue
+    cameranode->currentSequenceId = "";
+    cameranode->currentSequencePhotoNumber = 0;
+    cameranode->currentSequenceSuccesses = 0;
+    cameranode->currentSequenceFails = 0;    
+    
     auto exitStatus = std::make_shared<interfaces::action::Sequence::Result>();
     exitStatus->confirmcomplete = "Sequence complete";
     exitStatus->successes = feedback->successes;
@@ -309,6 +313,10 @@ void generateSequence::execute()
 {
   std::cout << "Entered generateSequence::execute()" << std::endl;
   const auto goal = goalHandle->get_goal();
+  cameranode->currentSequenceId = ID;
+  cameranode->currentSequencePhotoNumber = 0;
+  cameranode->currentSequenceSuccesses = 0;
+  cameranode->currentSequenceFails = 0;
   for (int i = 1; i <= goal->length; i++) {
     auto eventptr = std::make_shared<sequencePhotoRequest>(2, i, ID, goalHandle, cameranode);
     cameranode->insertEvent(eventptr);
