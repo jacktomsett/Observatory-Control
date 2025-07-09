@@ -261,6 +261,7 @@ void sequencePhotoRequest::execute()
 {
   //Fetch goal and feedback. //TODO: This is copied from previous iteration (and ultimately before that the ROS2 tutorial), I want to understand exactly what it is doing a bit better
   const auto goal = goalHandle->get_goal();//Also while doing addressing the above comment, decide whether it would be better to generate these pointers in the generateSequence class and pass them to each of the photoRequest class objects
+  //FIXME: The following values are not being preseved across different event objects. I think the best approach would be for the DataCamera class to track them
   auto feedback = std::make_shared<interfaces::action::Sequence::Feedback>();
   auto & currentImage = feedback->current;
   auto & successes = feedback->successes;

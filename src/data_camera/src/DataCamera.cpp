@@ -291,6 +291,7 @@ void DataCamera::checkCameraConnection()
 
 void DataCamera::insertEvent(std::shared_ptr<EventRequest> event)
 {
+  //FIXME: Events are not being sorted according to timestamp correctly. Lower priority does skip to the front of the queue but timestamps seem to be all over the place
   std::cout << "Entered insertEvent function" << std::endl;
   queueLock.lock();
   eventQueue.push_back(event);
@@ -496,6 +497,8 @@ rclcpp_action::GoalResponse DataCamera::sequenceGoal(
 rclcpp_action::CancelResponse DataCamera::sequenceCancel(
   const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goalHandle)
 {
+  //FIXME: This does remove all the events from the queue, but if the currently being acted on event execute function is part of this sequence (likely) then it will continue. This eventually results in it trying to publish feedback to a goal that does not exist
+  //Also, I don't know if the issue is with this code, but the ROS2 CLI action program doesn't quit after the sequence has been cancelled. I don't know if it is waiting for the action server to send some sort of notification
   RCLCPP_INFO_STREAM(this->get_logger(), "Cancelling photo sequence");
   std::string goalID = rclcpp_action::to_string(goalHandle->get_goal_id());
   queueLock.lock();
