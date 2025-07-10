@@ -323,7 +323,9 @@ void DataCamera::battery_callback(
     //Insert event request into queue
     insertEvent(eventptr);
 
-    while (eventptr->complete == false) {}
+    while (eventptr->complete == false) {
+      usleep(1); //TODO: Added in an attempt to stabilise thread sync. Just an experiment, I know ultimately more mutexes are needed.
+    }
   } else {
     response->description = "Camera disconnected";
   }
@@ -349,7 +351,9 @@ void DataCamera::getiso_callback(
     //Insert event request into queue
     insertEvent(eventptr);
 
-    while (eventptr->complete == false) {}
+    while (eventptr->complete == false) {
+      usleep(1); //TODO: Added in an attempt to stabilise thread sync. Just an experiment, I know ultimately more mutexes are needed.
+    }
   } else {
     response->description = "Camera disconnected";
   }
@@ -374,7 +378,9 @@ void DataCamera::setiso_callback(
     //Insert event request into queue
     insertEvent(eventptr);
 
-    while (eventptr->complete == false) {}
+    while (eventptr->complete == false) {
+      usleep(1); //TODO: Added in an attempt to stabilise thread sync. Just an experiment, I know ultimately more mutexes are needed.
+    }
   } else {
     response->description = "Camera disconnected";
   }
@@ -401,7 +407,9 @@ void DataCamera::getqual_callback(
     //Insert event request into queue
     insertEvent(eventptr);
 
-    while (eventptr->complete == false) {}
+    while (eventptr->complete == false) {
+      usleep(1); //TODO: Added in an attempt to stabilise thread sync. Just an experiment, I know ultimately more mutexes are needed.
+    }
   } else {
     response->description = "Camera disconnected";
   }
@@ -426,7 +434,9 @@ void DataCamera::setqual_callback(
     //Insert event request into queue
     insertEvent(eventptr);
 
-    while (eventptr->complete == false) {}
+    while (eventptr->complete == false) {
+      usleep(1); //TODO: Added in an attempt to stabilise thread sync. Just an experiment, I know ultimately more mutexes are needed.
+    }
   } else {
     response->description = "Camera disconnected";
   }
@@ -451,7 +461,9 @@ void DataCamera::getfnumber_callback(
     //Insert event request into queue
     insertEvent(eventptr);
 
-    while (eventptr->complete == false) {}
+    while (eventptr->complete == false) {
+      usleep(1); //TODO: Added in an attempt to stabilise thread sync. Just an experiment, I know ultimately more mutexes are needed.
+    }
   } else {
     response->description = "Camera disconnected";
   }
@@ -476,7 +488,9 @@ void DataCamera::setfnumber_callback(
     //Insert event request into queue
     insertEvent(eventptr);
 
-    while (eventptr->complete == false) {}
+    while (eventptr->complete == false) {
+      usleep(1); //TODO: Added in an attempt to stabilise thread sync. Just an experiment, I know ultimately more mutexes are needed.
+    }
   } else {
     response->description = "Camera disconnected";
   }
