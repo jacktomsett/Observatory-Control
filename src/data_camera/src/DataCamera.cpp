@@ -295,7 +295,7 @@ void DataCamera::checkCameraConnection()
 
 void DataCamera::insertEvent(std::shared_ptr<EventRequest> event)
 {
-
+  //TODO: Event queue is not sorting by priority properly anymore
   queueLock.lock();
   eventQueue.push_back(event);
   sort(eventQueue.begin(), eventQueue.end(),[](auto ptr1,auto ptr2){return *ptr1 < *ptr2;});
@@ -303,10 +303,7 @@ void DataCamera::insertEvent(std::shared_ptr<EventRequest> event)
   return;
 }
 
-//FIXME: After making fixes to the sequence action all the services are returning fails. Further investigation makes this look like some kind of race condition, when I added a bunch of cout statements to try and figure out what is going on it started working (but only for the one service that I added the statements to)
-// Further information: It is specifically the ros side of things that is not working. The correct actions are being taken on the camera. It looks like what is happeneing is the service callback is continuing before the event execute function has finished. I don't know how this is possible but it does seem to be what is happening.
-//FIXME: The priority of all events needs to be checked. It was treated like a placeholder before but now that the ability to request a sequence is being added they need to be checked.
-//TODO: Following on from above point, any services that change a setting the camera will need to check if a sequence is currently active and if so these should be rejected. This should be done after the sequence accept logic is built out
+//TODO: Any services that change a setting the camera will need to check if a sequence is currently active and if so these should be rejected. This should be done after the sequence accept logic is built out
 void DataCamera::battery_callback(
   const std::shared_ptr<interfaces::srv::IntStatus::Request> request,
   std::shared_ptr<interfaces::srv::IntStatus::Response> response)
@@ -518,6 +515,7 @@ rclcpp_action::CancelResponse DataCamera::sequenceCancel(
 {
   //FIXME: This does remove all the events from the queue, but if the currently being acted on event execute function is part of this sequence (likely) then it will continue. This eventually results in it trying to publish feedback to a goal that does not exist
   //Also, I don't know if the issue is with this code, but the ROS2 CLI action program doesn't quit after the sequence has been cancelled. I don't know if it is waiting for the action server to send some sort of notification
+  //FIXME: After fixing the service issues, The goal no longer cancels properly.
   RCLCPP_INFO_STREAM(this->get_logger(), "Cancelling photo sequence");
   std::string goalID = rclcpp_action::to_string(goalHandle->get_goal_id());
   queueLock.lock();
