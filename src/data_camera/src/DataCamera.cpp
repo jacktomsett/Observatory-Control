@@ -303,7 +303,8 @@ void DataCamera::insertEvent(std::shared_ptr<EventRequest> event)
   return;
 }
 
-//FIXME: After making fixes to the sequence action all the services are returning fails.
+//FIXME: After making fixes to the sequence action all the services are returning fails. Further investigation makes this look like some kind of race condition, when I added a bunch of cout statements to try and figure out what is going on it started working (but only for the one service that I added the statements to)
+// Further information: It is specifically the ros side of things that is not working. The correct actions are being taken on the camera. It looks like what is happeneing is the service callback is continuing before the event execute function has finished. I don't know how this is possible but it does seem to be what is happening.
 //FIXME: The priority of all events needs to be checked. It was treated like a placeholder before but now that the ability to request a sequence is being added they need to be checked.
 //TODO: Following on from above point, any services that change a setting the camera will need to check if a sequence is currently active and if so these should be rejected. This should be done after the sequence accept logic is built out
 void DataCamera::battery_callback(
