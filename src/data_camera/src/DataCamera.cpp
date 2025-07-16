@@ -71,6 +71,7 @@ DataCamera::DataCamera()
 
 DataCamera::~DataCamera()
 {
+  //FIXME: When a sequence goal is active, sending a shutdown request causes a crash rather than a graceful shutdown
   auto eventmessage = interfaces::msg::Event();
   eventmessage.event = "Camera Node shutting down";
   eventpublisher->publish(eventmessage);
@@ -182,6 +183,18 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
 
   return  (ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
     const_cast<char *>(value)) == 0);
+}
+
+bool DataCamera::capture_image()
+{
+  //Prepare to capture image
+  CameraFilePath camera_file_path;
+  CameraFileInfo info;
+  strcpy(camera_file_path.folder,"/");
+  strcpy(camera_file_path.name, "foo.jpg"); //TODO:: This is copied straight from the examples. A comment in the example suggests that this function is not properly implemented and whatever value we put here is overwritten by the library (but we do need to hae something in the variabe for later function calls)
+                                                      //Want to build some functionality here to label the files with information about the sequence they belong
+  int ret = gp_camera_capture(cameraHandle,GP_CAPTURE_IMAGE,&camera_file_path,context);
+  return (ret == GP_OK);
 }
 
 void DataCamera::contextErrorFunction(GPContext *context, const char *str, void *data)

@@ -26,7 +26,7 @@ bool EventRequest::operator<(const EventRequest & b)
   if (b.priority == this->priority) {
     result = (this->timestamp > b.timestamp);
   } else {
-    result = (this->priority) < b.priority;
+    result = (this->priority) > b.priority;
   }
   return result;
 }
@@ -262,10 +262,7 @@ void sequencePhotoRequest::execute()
   const auto goal = goalHandle->get_goal();//Also while doing addressing the above comment, decide whether it would be better to generate these pointers in the generateSequence class and pass them to each of the photoRequest class objects
   auto feedback = std::make_shared<interfaces::action::Sequence::Feedback>();
 
-
-  //TODO: Placeholder. Need to implement capturing image
-  sleep(5);
-  bool ret = false; //Again, placeholder. Should be return value of capture function
+  bool ret = cameranode->capture_image();
   //Update counts
   cameranode->currentSequencePhotoNumber++;
   if (ret == true) {
@@ -273,6 +270,7 @@ void sequencePhotoRequest::execute()
   } else {
     cameranode->currentSequenceFails++;
   }
+  //TODO: Don't know if here is where it would go, but it would be nice if we could set a threshold (eg.5) where if we get 5 failed captures in a row the sequence will abort (cancel)
   feedback->current = cameranode->currentSequencePhotoNumber;
   feedback->successes = cameranode->currentSequenceSuccesses;
   feedback->fails = cameranode->currentSequenceFails;
