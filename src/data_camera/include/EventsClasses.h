@@ -121,7 +121,7 @@ class generateSequence : public EventRequest
   public:
     generateSequence(int, const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>>, DataCamera *);
     ~generateSequence();
-    void execute();
+    void execute() override;
   private:
     std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goalHandle;
 };
