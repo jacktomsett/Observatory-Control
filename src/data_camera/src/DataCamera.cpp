@@ -56,6 +56,9 @@ DataCamera::DataCamera()
     std::bind(&DataCamera::sequenceCancel,this,std::placeholders::_1),
     std::bind(&DataCamera::sequence_accepted,this,std::placeholders::_1)
   );
+
+        //Pointer to hold current event
+  std::shared_ptr<EventRequest> currentEvent(nullptr);
     //Start camera thread
   cameraThread = std::thread(&DataCamera::cameraThreadFunction, this);
 
@@ -175,7 +178,6 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
     const_cast<char *>(value)) != 0) )
   {
     *err = "Failed to update setting on the camera: " + errorstring;
-    std::cout << demand << " : " << value << std::endl;
   }
 
   return  (ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
@@ -204,9 +206,6 @@ void DataCamera::contextStatusFunction(GPContext *context, const char *str, void
 
 void DataCamera::cameraThreadFunction()
 {
-      //Pointer to hold current event
-  std::shared_ptr<EventRequest> currentEvent(nullptr);
-
 
   while(shutdownRequest == false) {
     if(isCameraConnected == false) {
@@ -216,10 +215,14 @@ void DataCamera::cameraThreadFunction()
             //loop in the situation where no camera is connected
         usleep(200);     //TODO: Decide whether this should be achieved with a ROS timer
       }
-    } else if(eventQueue.size() == 0) {
+    }
+    else if(eventQueue.size() == 0)
+    {
           //Run keep alive command to check camera is still connected
       checkCameraConnection();
-    } else {
+    }
+    else
+    {
           //Create local copy of first event in queue
       queueLock.lock();
       currentEvent = eventQueue[0];
@@ -230,6 +233,12 @@ void DataCamera::cameraThreadFunction()
       currentEvent->execute();
       //Signal to any waiting processes that the event has finished executing
       currentEvent->complete = true;     //TODO For some reason it is bad practice to directly modify class fields from outside of the class. It is supposed to be done via getter and settor functions. Also maybe this is better controlled by the execute function itself, maybe not (At first I thought not because I dont want the callback function doing anything while the execute function is still running). Either way I havent put any thought into it
+      
+      //Delete the pointer to current event. It is wrapped in a mutex because certain callbacks (ones that dont create the event they are working with)
+      //need to create their own copy of the event pointer otherwise it might be deleted here before that callback can check the value of 'complete'
+      currentEventLock.lock();
+      currentEvent = nullptr;
+      currentEventLock.unlock();
 
     }
   }
@@ -518,21 +527,34 @@ rclcpp_action::CancelResponse DataCamera::sequenceCancel(
   //FIXME: After fixing the service issues, The goal no longer cancels properly.
   RCLCPP_INFO_STREAM(this->get_logger(), "Cancelling photo sequence");
   std::string goalID = rclcpp_action::to_string(goalHandle->get_goal_id());
+
+  //Remove all events associated with this goal from the eventQueue
   queueLock.lock();
-  for(int i = 0; i < eventQueue.size(); i++) {
-    if (goalID == eventQueue[i]->ID) {
+  for(int i = eventQueue.size() - 1; i != 0; i--) { //TODO: Might be more efficient to run through the queue backwards
+    if (goalID == eventQueue[i]->ID) 
+    {
       eventQueue.erase(eventQueue.begin() + i);
-      i--;
     }
   }
   queueLock.unlock();
+  //Check if an event is currently executing (ie currentEvent != nullptr) and if it is part of this goal, if so then we should wait for that to finish
+  currentEventLock.lock();
+  if(currentEvent && currentEvent->ID == goalID)
+  {
+    //Increase the reference count of pointer so that it wont be destroyed before the comparison can be done
+    std::shared_ptr<EventRequest> eventptr = currentEvent;
+    currentEventLock.unlock();
+    while (eventptr->complete == false) {
+      usleep(1); //TODO: Added in an attempt to stabilise thread sync. Just an experiment, I know ultimately more mutexes are needed.
+    }
+  }
+  currentEventLock.unlock();
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
 void DataCamera::sequence_accepted(
   const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goalHandle)
 {
-  std::cout << "Entered sequence_accepted function" << std::endl;
   //This callback needs to finish quickly so it doesn't freeze up the system, so instead of populating the event queue with all of
   //the photo requests here, we will add in a single event that in turn will generste the rest of the events
   auto eventptr = std::make_shared<generateSequence>(1, goalHandle, this);

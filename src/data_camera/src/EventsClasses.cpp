@@ -245,7 +245,6 @@ sequencePhotoRequest::sequencePhotoRequest(
   std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> gh,
   DataCamera * node)
 {
-  std::cout << "Entered sequencePhotoRequest constructor" << std::endl;
   priority = p;
   photoNumber = n;
   timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
@@ -254,7 +253,8 @@ sequencePhotoRequest::sequencePhotoRequest(
   cameranode = node;
 }
 
-sequencePhotoRequest::~sequencePhotoRequest() {}
+sequencePhotoRequest::~sequencePhotoRequest() {
+}
 
 void sequencePhotoRequest::execute()
 {
@@ -264,7 +264,6 @@ void sequencePhotoRequest::execute()
 
 
   //TODO: Placeholder. Need to implement capturing image
-  std::cout << "DataCamera node attempting capture (placeholder)" << std::endl;
   sleep(5);
   bool ret = false; //Again, placeholder. Should be return value of capture function
   //Update counts
@@ -292,6 +291,7 @@ void sequencePhotoRequest::execute()
     exitStatus->fails = feedback->fails;
     goalHandle->succeed(exitStatus);
   }
+  return;
 }
 
 generateSequence::generateSequence(
@@ -299,7 +299,6 @@ generateSequence::generateSequence(
   const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> gh,
   DataCamera * node)
 {
-  std::cout << "Entered generateSequence constructor" << std::endl;
   priority = p;
   timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
   goalHandle = gh;
@@ -311,7 +310,6 @@ generateSequence::~generateSequence() {}
 
 void generateSequence::execute()
 {
-  std::cout << "Entered generateSequence::execute()" << std::endl;
   const auto goal = goalHandle->get_goal();
   cameranode->currentSequenceId = ID;
   cameranode->currentSequencePhotoNumber = 0;

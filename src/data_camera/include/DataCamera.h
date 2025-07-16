@@ -32,7 +32,9 @@ private:
   bool shutdownRequest;
   bool isCameraConnected;
   std::vector < std::shared_ptr<EventRequest>> eventQueue;
+  std::shared_ptr<EventRequest> currentEvent;
   std::mutex queueLock;
+  std::mutex currentEventLock;
 
         //libgphoto variables and functions
   Camera *cameraHandle;
