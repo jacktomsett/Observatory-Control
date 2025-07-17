@@ -52,9 +52,9 @@ DataCamera::DataCamera()
     //Initialise actions
   requestSequenceAction = rclcpp_action::create_server<interfaces::action::Sequence>(
     this, "sequence",
-    std::bind(&DataCamera::sequenceGoal,this, std::placeholders::_1,std::placeholders::_2),
-    std::bind(&DataCamera::sequenceCancel,this,std::placeholders::_1),
-    std::bind(&DataCamera::sequence_accepted,this,std::placeholders::_1)
+    std::bind(&DataCamera::sequenceGoal, this, std::placeholders::_1, std::placeholders::_2),
+    std::bind(&DataCamera::sequenceCancel, this, std::placeholders::_1),
+    std::bind(&DataCamera::sequence_accepted, this, std::placeholders::_1)
   );
 
         //Pointer to hold current event
@@ -190,11 +190,11 @@ bool DataCamera::capture_image()
   //Prepare to capture image
   CameraFilePath camera_file_path;
   CameraFileInfo info;
-  strcpy(camera_file_path.folder,"/");
+  strcpy(camera_file_path.folder, "/");
   strcpy(camera_file_path.name, "foo.jpg"); //TODO:: This is copied straight from the examples. A comment in the example suggests that this function is not properly implemented and whatever value we put here is overwritten by the library (but we do need to hae something in the variabe for later function calls)
                                                       //Want to build some functionality here to label the files with information about the sequence they belong
-  int ret = gp_camera_capture(cameraHandle,GP_CAPTURE_IMAGE,&camera_file_path,context);
-  return (ret == GP_OK);
+  int ret = gp_camera_capture(cameraHandle, GP_CAPTURE_IMAGE, &camera_file_path, context);
+  return  ret == GP_OK;
 }
 
 void DataCamera::contextErrorFunction(GPContext *context, const char *str, void *data)
@@ -228,14 +228,10 @@ void DataCamera::cameraThreadFunction()
             //loop in the situation where no camera is connected
         usleep(200);     //TODO: Decide whether this should be achieved with a ROS timer
       }
-    }
-    else if(eventQueue.size() == 0)
-    {
+    } else if(eventQueue.size() == 0) {
           //Run keep alive command to check camera is still connected
       checkCameraConnection();
-    }
-    else
-    {
+    } else {
           //Create local copy of first event in queue
       queueLock.lock();
       currentEvent = eventQueue[0];
@@ -246,7 +242,7 @@ void DataCamera::cameraThreadFunction()
       currentEvent->execute();
       //Signal to any waiting processes that the event has finished executing
       currentEvent->complete = true;     //TODO For some reason it is bad practice to directly modify class fields from outside of the class. It is supposed to be done via getter and settor functions. Also maybe this is better controlled by the execute function itself, maybe not (At first I thought not because I dont want the callback function doing anything while the execute function is still running). Either way I havent put any thought into it
-      
+
       //Delete the pointer to current event. It is wrapped in a mutex because certain callbacks (ones that dont create the event they are working with)
       //need to create their own copy of the event pointer otherwise it might be deleted here before that callback can check the value of 'complete'
       currentEventLock.lock();
@@ -320,7 +316,7 @@ void DataCamera::insertEvent(std::shared_ptr<EventRequest> event)
   //TODO: Event queue is not sorting by priority properly anymore
   queueLock.lock();
   eventQueue.push_back(event);
-  sort(eventQueue.begin(), eventQueue.end(),[](auto ptr1,auto ptr2){return *ptr1 < *ptr2;});
+  sort(eventQueue.begin(), eventQueue.end(), [](auto ptr1, auto ptr2){return *ptr1 < *ptr2;});
   queueLock.unlock();
   return;
 }
@@ -524,36 +520,40 @@ rclcpp_action::GoalResponse DataCamera::sequenceGoal(
   const rclcpp_action::GoalUUID & uuid,
   std::shared_ptr<const interfaces::action::Sequence::Goal> goal)
 {
+  //TODO: Add a field to the action definition to include a parameter specify what to do in the case that there is an existing action (eg queue it for after the existing action or cancel the current action first) ((actually thats not a bad set of options for all camera setting changes))
+  rclcpp_action::GoalResponse response;
   RCLCPP_INFO_STREAM(this->get_logger(),
     "Received request for photo sequence containing " << goal->length << " photos");
-  //TODO: Placeholder function. This just accepts all goals. Unlike the previous iteration I do think this wouldnt actually break anything as new sequences would just get queued for after existing sequences. Regardless ultimatly this should be overhauled and a state flag added to DataCamera that tracks what sequences have currently been accepted and rejects new ones unless they are sent with high priority or have explicitly said they are happy to wait until the current one finishes
-  (void) uuid;
-  RCLCPP_INFO_STREAM(this->get_logger(), "Sequence request accepted");
-  return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+  if (currentSequenceId != "") {
+    (void) uuid; //TODO: Find out why this is cast to void in the example
+    RCLCPP_INFO_STREAM(this->get_logger(), "Sequence request accepted");
+    response = rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+  } else {
+    RCLCPP_INFO_STREAM(this->get_logger(),
+      "Sequence request denied due to existing sequence being processed");
+    response = rclcpp_action::GoalResponse::REJECT;
+  }
+
+  return response;
 }
 
 rclcpp_action::CancelResponse DataCamera::sequenceCancel(
   const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goalHandle)
 {
-  //FIXME: This does remove all the events from the queue, but if the currently being acted on event execute function is part of this sequence (likely) then it will continue. This eventually results in it trying to publish feedback to a goal that does not exist
-  //Also, I don't know if the issue is with this code, but the ROS2 CLI action program doesn't quit after the sequence has been cancelled. I don't know if it is waiting for the action server to send some sort of notification
-  //FIXME: After fixing the service issues, The goal no longer cancels properly.
   RCLCPP_INFO_STREAM(this->get_logger(), "Cancelling photo sequence");
   std::string goalID = rclcpp_action::to_string(goalHandle->get_goal_id());
 
   //Remove all events associated with this goal from the eventQueue
   queueLock.lock();
-  for(int i = eventQueue.size() - 1; i != 0; i--) { //TODO: Might be more efficient to run through the queue backwards
-    if (goalID == eventQueue[i]->ID) 
-    {
+  for(int i = eventQueue.size() - 1; i != 0; i--) {
+    if (goalID == eventQueue[i]->ID) {
       eventQueue.erase(eventQueue.begin() + i);
     }
   }
   queueLock.unlock();
   //Check if an event is currently executing (ie currentEvent != nullptr) and if it is part of this goal, if so then we should wait for that to finish
   currentEventLock.lock();
-  if(currentEvent && currentEvent->ID == goalID)
-  {
+  if(currentEvent && currentEvent->ID == goalID) {
     //Increase the reference count of pointer so that it wont be destroyed before the comparison can be done
     std::shared_ptr<EventRequest> eventptr = currentEvent;
     currentEventLock.unlock();
@@ -562,6 +562,12 @@ rclcpp_action::CancelResponse DataCamera::sequenceCancel(
     }
   }
   currentEventLock.unlock();
+
+  //Finally, clear the sequence information fields
+  currentSequenceId = "";
+  currentSequencePhotoNumber = 0;
+  currentSequenceSuccesses = 0;
+  currentSequenceFails = 0;
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 

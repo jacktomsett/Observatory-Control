@@ -45,7 +45,7 @@ private:
   static void contextErrorFunction(GPContext *, const char *, void *);
   static void contextStatusFunction(GPContext *, const char *, void *);
 
-  std::string errorstring;       //Holds last error from camera, to send back to service clients
+  std::string errorstring;       //Holds last error from camera, to send back to service clients //FIXME: Not particularly robust, should be overhauled
 
         //Publishers, Subscribers, Services, Actions, Parameters
   rclcpp::Publisher < interfaces::msg::Event > ::SharedPtr eventpublisher;
