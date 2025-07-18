@@ -81,7 +81,7 @@ DataCamera::~DataCamera()
 }
 
 bool DataCamera::get_setting_value(char * key, char ** value, std::string *err)
-{//TODO: Have not actually checked the error reporting yet because there is no easy way to make a simple request fail currently. Once the focal length service is added it can be tested by running it with the lens detached.
+{
   bool returnVal = false;
   int ret = 0;
   CameraWidget *widget;
@@ -101,6 +101,16 @@ bool DataCamera::get_setting_value(char * key, char ** value, std::string *err)
     *err = errorstring;
   }
 
+  //Publish event to camera info topic
+  auto eventmessage = interfaces::msg::Event();
+  if(returnVal == true) {
+    eventmessage.event = "Fetched value of setting " + std::string(key) + " from camera : " +
+      std::string(*value);
+    eventpublisher->publish(eventmessage);
+  } else {
+    eventmessage.event = "Failed to fetch value of setting " + std::string(key) + " from camera";
+    eventpublisher->publish(eventmessage);
+  }
   return returnVal;
 }
 
@@ -181,6 +191,20 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
     *err = "Failed to update setting on the camera: " + errorstring;
   }
 
+  //Publish event to camera info topic
+  auto eventmessage = interfaces::msg::Event();
+  if((ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
+    const_cast<char *>(value)) == 0))
+  {
+    eventmessage.event = "Updated value of setting " + std::string(key) + " on camera to " +
+      std::string(demand);
+    eventpublisher->publish(eventmessage);
+  } else {
+    eventmessage.event = "Failed to update value of setting " + std::string(key) +
+      " on camera to " + std::string(demand);
+    eventpublisher->publish(eventmessage);
+  }
+
   return  (ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
     const_cast<char *>(value)) == 0);
 }
@@ -194,6 +218,14 @@ bool DataCamera::capture_image()
   strcpy(camera_file_path.name, "foo.jpg"); //TODO:: This is copied straight from the examples. A comment in the example suggests that this function is not properly implemented and whatever value we put here is overwritten by the library (but we do need to hae something in the variabe for later function calls)
                                                       //Want to build some functionality here to label the files with information about the sequence they belong
   int ret = gp_camera_capture(cameraHandle, GP_CAPTURE_IMAGE, &camera_file_path, context);
+  auto eventmessage = interfaces::msg::Event();
+  if(ret == true) {
+    eventmessage.event = "Image captured";
+    eventpublisher->publish(eventmessage);
+  } else {
+    eventmessage.event = "Failed to capture an image";
+    eventpublisher->publish(eventmessage);
+  }
   return  ret == GP_OK;
 }
 
@@ -528,10 +560,18 @@ rclcpp_action::GoalResponse DataCamera::sequenceGoal(
     (void) uuid; //TODO: Find out why this is cast to void in the example
     RCLCPP_INFO_STREAM(this->get_logger(), "Sequence request accepted");
     response = rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+
+    auto eventmessage = interfaces::msg::Event();
+    eventmessage.event = "Sequence of " + std::to_string(goal->length) + " accepted";
+    eventpublisher->publish(eventmessage);
   } else {
     RCLCPP_INFO_STREAM(this->get_logger(),
       "Sequence request denied due to existing sequence being processed");
     response = rclcpp_action::GoalResponse::REJECT;
+
+    auto eventmessage = interfaces::msg::Event();
+    eventmessage.event = "Sequence of " + std::to_string(goal->length) + " rejected: Sequence already in progress";
+    eventpublisher->publish(eventmessage);
   }
 
   return response;
@@ -568,6 +608,11 @@ rclcpp_action::CancelResponse DataCamera::sequenceCancel(
   currentSequencePhotoNumber = 0;
   currentSequenceSuccesses = 0;
   currentSequenceFails = 0;
+
+  auto eventmessage = interfaces::msg::Event();
+  eventmessage.event = "Sequence aborted";
+  eventpublisher->publish(eventmessage);
+
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
