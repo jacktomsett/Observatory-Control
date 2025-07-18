@@ -63,10 +63,10 @@ DataCamera::DataCamera()
   cameraThread = std::thread(&DataCamera::cameraThreadFunction, this);
 
     //Announce node start
-  auto eventmessage = interfaces::msg::Event();
-  eventmessage.event = "Camera Node starting";
-  eventpublisher->publish(eventmessage);
   RCLCPP_INFO_STREAM(this->get_logger(), "Node started");
+  auto eventmessage = interfaces::msg::Event();
+  eventmessage.event = "Camera Node starting"; //FIXME: For some reason this isn't getting published
+  eventpublisher->publish(eventmessage);
 }
 
 DataCamera::~DataCamera()
@@ -74,7 +74,7 @@ DataCamera::~DataCamera()
   //FIXME: When a sequence goal is active, sending a shutdown request causes a crash rather than a graceful shutdown
   auto eventmessage = interfaces::msg::Event();
   eventmessage.event = "Camera Node shutting down";
-  eventpublisher->publish(eventmessage);
+  eventpublisher->publish(eventmessage); //FIXME: For some reason this isn't getting published
   RCLCPP_INFO_STREAM(this->get_logger(), "Shutdown request received");
   shutdownRequest = true;
   cameraThread.join();
@@ -219,11 +219,11 @@ bool DataCamera::capture_image()
                                                       //Want to build some functionality here to label the files with information about the sequence they belong
   int ret = gp_camera_capture(cameraHandle, GP_CAPTURE_IMAGE, &camera_file_path, context);
   auto eventmessage = interfaces::msg::Event();
-  if(ret == true) {
+  if(ret == GP_OK) {
     eventmessage.event = "Image captured";
     eventpublisher->publish(eventmessage);
   } else {
-    eventmessage.event = "Failed to capture an image";
+    eventmessage.event = "Failed to capture an image: " + std::string(gp_port_result_as_string(ret));
     eventpublisher->publish(eventmessage);
   }
   return  ret == GP_OK;
@@ -556,7 +556,7 @@ rclcpp_action::GoalResponse DataCamera::sequenceGoal(
   rclcpp_action::GoalResponse response;
   RCLCPP_INFO_STREAM(this->get_logger(),
     "Received request for photo sequence containing " << goal->length << " photos");
-  if (currentSequenceId != "") {
+  if (currentSequenceId == "") {
     (void) uuid; //TODO: Find out why this is cast to void in the example
     RCLCPP_INFO_STREAM(this->get_logger(), "Sequence request accepted");
     response = rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
