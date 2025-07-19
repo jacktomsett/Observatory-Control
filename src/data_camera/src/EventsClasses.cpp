@@ -278,7 +278,7 @@ void sequencePhotoRequest::execute()
   goalHandle->publish_feedback(feedback);
 
   //Check if goal is complete
-  if(cameranode->currentSequencePhotoNumber == goal->length) { //TODO: Alternatively this could be currentImage == goal-> length. Or both. A mechanism should be put in place in case the images for some reason end up out of order in the event queue
+  if(cameranode->currentSequencePhotoNumber == goal->length) {
     cameranode->currentSequenceId = "";
     cameranode->currentSequencePhotoNumber = 0;
     cameranode->currentSequenceSuccesses = 0;
