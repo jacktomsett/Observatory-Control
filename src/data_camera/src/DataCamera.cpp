@@ -355,6 +355,11 @@ void DataCamera::insertEvent(std::shared_ptr<EventRequest> event)
 }
 
 //TODO: Any services that change a setting the camera will need to check if a sequence is currently active and if so these should be rejected. This should be done after the sequence accept logic is built out
+//Initially I thought the priority system would handle this but I now realise that wont work because even if the EventRequest is succesfully put to the end of the queue after the sequence, the ROS service will
+//still hang until it's completed which is not good. Alternative options would be that the service can return and effectively confirm that its been put in the queue and the client will have to accept that they
+//wont have any confirmation that it's been successfully done, or alternatively the service can be rejected entirely and the desired functionality (ie the ability to be able to queue up a parameter change for after
+// a currently executing sequence) can be wrapped up into a new action definition called something sequenceRequestWithParameters where in addition to adding in the events for capturing the photos, the required parameter
+// settting events are also added and the sequence will only proceed if they are all successfull (I think I will go with this one)
 void DataCamera::battery_callback(
   const std::shared_ptr<interfaces::srv::IntStatus::Request> request,
   std::shared_ptr<interfaces::srv::IntStatus::Response> response)
