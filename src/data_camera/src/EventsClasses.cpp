@@ -253,7 +253,8 @@ sequencePhotoRequest::sequencePhotoRequest(
   cameranode = node;
 }
 
-sequencePhotoRequest::~sequencePhotoRequest() {
+sequencePhotoRequest::~sequencePhotoRequest()
+{
 }
 
 void sequencePhotoRequest::execute()
@@ -281,8 +282,8 @@ void sequencePhotoRequest::execute()
     cameranode->currentSequenceId = "";
     cameranode->currentSequencePhotoNumber = 0;
     cameranode->currentSequenceSuccesses = 0;
-    cameranode->currentSequenceFails = 0;    
-    
+    cameranode->currentSequenceFails = 0;
+
     auto exitStatus = std::make_shared<interfaces::action::Sequence::Result>();
     exitStatus->confirmcomplete = "Sequence complete";
     exitStatus->successes = feedback->successes;

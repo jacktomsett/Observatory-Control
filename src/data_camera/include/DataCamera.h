@@ -17,7 +17,7 @@ public:
   DataCamera();
   ~DataCamera();
 
-  void insertEvent(std::shared_ptr<EventRequest>);
+  void insertEvent(std::shared_ptr < EventRequest >);
   bool get_setting_value(char *, char **, std::string *);
   bool set_menu_setting_value(char *, const char *, std::string *);
   bool capture_image();
@@ -32,8 +32,8 @@ private:
         //State tracking variables
   bool shutdownRequest;
   bool isCameraConnected;
-  std::vector < std::shared_ptr<EventRequest>> eventQueue;
-  std::shared_ptr<EventRequest> currentEvent;
+  std::vector < std::shared_ptr < EventRequest >> eventQueue;
+  std::shared_ptr < EventRequest > currentEvent;
   std::mutex queueLock;
   std::mutex currentEventLock;
 
@@ -56,8 +56,8 @@ private:
   rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setqualservice;
   rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getfnumberservice;
   rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setfnumberservice;
-  rclcpp_action::Server <interfaces::action::Sequence> ::SharedPtr requestSequenceAction;
-  
+  rclcpp_action::Server < interfaces::action::Sequence > ::SharedPtr requestSequenceAction;
+
 
         //Camera Thread
   std::thread cameraThread;
@@ -93,8 +93,14 @@ private:
     std::shared_ptr < interfaces::srv::StringRequest::Response >);
 
         //Action Callbacks
-  rclcpp_action::GoalResponse sequenceGoal(const rclcpp_action::GoalUUID&, std::shared_ptr<const interfaces::action::Sequence::Goal>);
-  rclcpp_action::CancelResponse sequenceCancel( const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>>);
-  void sequence_accepted(const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>>);
-  
+  rclcpp_action::GoalResponse sequenceGoal(
+    const rclcpp_action::GoalUUID &,
+    std::shared_ptr < const interfaces::action::Sequence::Goal >);
+  rclcpp_action::CancelResponse sequenceCancel(
+    const std::shared_ptr <
+    rclcpp_action::ServerGoalHandle < interfaces::action::Sequence >>);
+  void sequence_accepted(
+    const std::shared_ptr < rclcpp_action::ServerGoalHandle <
+    interfaces::action::Sequence >>);
+
 };

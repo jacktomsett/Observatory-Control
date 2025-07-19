@@ -223,7 +223,8 @@ bool DataCamera::capture_image()
     eventmessage.event = "Image captured";
     eventpublisher->publish(eventmessage);
   } else {
-    eventmessage.event = "Failed to capture an image: " + std::string(gp_port_result_as_string(ret));
+    eventmessage.event = "Failed to capture an image: " +
+      std::string(gp_port_result_as_string(ret));
     eventpublisher->publish(eventmessage);
   }
   return  ret == GP_OK;
@@ -570,7 +571,8 @@ rclcpp_action::GoalResponse DataCamera::sequenceGoal(
     response = rclcpp_action::GoalResponse::REJECT;
 
     auto eventmessage = interfaces::msg::Event();
-    eventmessage.event = "Sequence of " + std::to_string(goal->length) + " rejected: Sequence already in progress";
+    eventmessage.event = "Sequence of " + std::to_string(goal->length) +
+      " rejected: Sequence already in progress";
     eventpublisher->publish(eventmessage);
   }
 

@@ -107,21 +107,25 @@ private:
 
 class sequencePhotoRequest: public EventRequest
 {
-  public:
-    sequencePhotoRequest(int, int, std::string, std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>>, DataCamera *);
-    ~sequencePhotoRequest();
-    void execute() override;
-  private:
-    std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goalHandle;
-    int photoNumber;
+public:
+  sequencePhotoRequest(int, int, std::string,
+    std::shared_ptr < rclcpp_action::ServerGoalHandle < interfaces::action::Sequence >>,
+    DataCamera *);
+  ~sequencePhotoRequest();
+  void execute() override;
+private:
+  std::shared_ptr < rclcpp_action::ServerGoalHandle < interfaces::action::Sequence >> goalHandle;
+  int photoNumber;
 };
 
-class generateSequence : public EventRequest
+class generateSequence: public EventRequest
 {
-  public:
-    generateSequence(int, const std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>>, DataCamera *);
-    ~generateSequence();
-    void execute() override;
-  private:
-    std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> goalHandle;
+public:
+  generateSequence(int,
+    const std::shared_ptr < rclcpp_action::ServerGoalHandle < interfaces::action::Sequence >>,
+    DataCamera *);
+  ~generateSequence();
+  void execute() override;
+private:
+  std::shared_ptr < rclcpp_action::ServerGoalHandle < interfaces::action::Sequence >> goalHandle;
 };
