@@ -26,7 +26,7 @@ bool EventRequest::operator<(const EventRequest & b)
   if (b.priority == this->priority) {
     result = (this->timestamp < b.timestamp); //This is definitely the right way round, I have tested it. Dont change it
   } else {
-    result = (this->priority) > b.priority;
+    result = (this->priority) < b.priority;
   }
   return result;
 }
