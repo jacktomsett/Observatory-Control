@@ -93,6 +93,11 @@ private:
   void setfnumber_callback(
     const std::shared_ptr < interfaces::srv::StringRequest::Request >,
     std::shared_ptr < interfaces::srv::StringRequest::Response >);
+  //TODO: The front end probably will want the ability to request possible options for a given service, rather than having to guess first and check the error description
+  //TODO: Add a service to set exposure time
+  //TODO: Add service to enable/disable long exposure noise reduction
+  //TODO: Add a service to enable/disable flash
+  //TODO: Add a service for setting white balance (Does this matter if shooting in RAW?)
 
         //Action Callbacks
   rclcpp_action::GoalResponse sequenceGoal(
