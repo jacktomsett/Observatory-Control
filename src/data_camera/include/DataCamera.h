@@ -1,6 +1,8 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "interfaces/msg/event.hpp"
+#include "interfaces/srv/bool_status.hpp"
+#include "interfaces/srv/bool_request.hpp"
 #include "interfaces/srv/int_status.hpp"
 #include "interfaces/srv/int_request.hpp"
 #include "interfaces/srv/string_status.hpp"
