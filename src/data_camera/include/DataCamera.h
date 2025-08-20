@@ -58,6 +58,8 @@ private:
   rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setqualservice;
   rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getfnumberservice;
   rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setfnumberservice;
+  rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getexposureservice;
+  rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setexposureservice;
   rclcpp_action::Server < interfaces::action::Sequence > ::SharedPtr requestSequenceAction;
 
 
@@ -86,15 +88,21 @@ private:
   void setqual_callback(
     const std::shared_ptr < interfaces::srv::StringRequest::Request >,
     std::shared_ptr < interfaces::srv::StringRequest::Response >);
-   //TODO: It would be better if the following two services accepted and reported doubles rather than strings. The camera reports the value as strings so they would need to be formatted. This would require modifying the functions that communicate with the camera
+   //TODO: It would be better if the following four services accepted and reported doubles rather than strings. The camera reports the value as strings so they would need to be formatted. This would require modifying the functions that communicate with the camera
   void getfnumber_callback(
     const std::shared_ptr < interfaces::srv::StringStatus::Request >,
     std::shared_ptr < interfaces::srv::StringStatus::Response >);
   void setfnumber_callback(
     const std::shared_ptr < interfaces::srv::StringRequest::Request >,
     std::shared_ptr < interfaces::srv::StringRequest::Response >);
+  void getexposure_callback(
+    const std::shared_ptr < interfaces::srv::StringStatus::Request >,
+    std::shared_ptr < interfaces::srv::StringStatus::Response >);
+  void setexposure_callback(
+    const std::shared_ptr < interfaces::srv::StringRequest::Request >,
+    std::shared_ptr < interfaces::srv::StringRequest::Response >);
   //TODO: The front end probably will want the ability to request possible options for a given service, rather than having to guess first and check the error description
-  //TODO: Add a service to set exposure time
+  //TODO: In addition to above, probably want a service that fetches all configuration values simultaneously
   //TODO: Add a service to be able to set focus mode to manual
   //TODO: Add service to enable/disable long exposure noise reduction
   //TODO: Add a service to enable/disable flash

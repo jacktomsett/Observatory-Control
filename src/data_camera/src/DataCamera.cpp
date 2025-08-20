@@ -20,6 +20,7 @@ DataCamera::DataCamera()
 
     //Initialise publishers
   eventpublisher = this->create_publisher<interfaces::msg::Event>("camera_events", 10);   //TODO: Not currently doing anything with this. At a minimum I would suggets that every service callback reports to this
+
     //Initialise services
   batteryservice = this->create_service<interfaces::srv::IntStatus>(
       "battery_status",
@@ -48,6 +49,14 @@ DataCamera::DataCamera()
   setfnumberservice = this->create_service<interfaces::srv::StringRequest>(
       "set_f_number",
     std::bind(&DataCamera::setfnumber_callback, this, std::placeholders::_1, std::placeholders::_2)
+  );
+  getexposureservice = this->create_service<interfaces::srv::StringStatus>(
+      "get_exposure",
+    std::bind(&DataCamera::getexposure_callback, this, std::placeholders::_1, std::placeholders::_2)
+  );
+  setexposureservice = this->create_service<interfaces::srv::StringRequest>(
+      "set_exposure",
+    std::bind(&DataCamera::setexposure_callback, this, std::placeholders::_1, std::placeholders::_2)
   );
     //Initialise actions
   requestSequenceAction = rclcpp_action::create_server<interfaces::action::Sequence>(
@@ -538,6 +547,60 @@ void DataCamera::setfnumber_callback(
   if(isCameraConnected == true) {
     //Create event
     auto eventptr = std::make_shared<setFNumberRequest>(1, request, response, this);
+    //Insert event request into queue
+    insertEvent(eventptr);
+
+    while (eventptr->complete == false) {
+      usleep(1); //TODO: Added in an attempt to stabilise thread sync. Just an experiment, I know ultimately more mutexes are needed.
+    }
+  } else {
+    response->description = "Camera disconnected";
+  }
+  if (response->status == true) {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->status);
+  } else {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
+  }
+}
+
+void DataCamera::getexposure_callback(
+  const std::shared_ptr<interfaces::srv::StringStatus::Request> request,
+  std::shared_ptr<interfaces::srv::StringStatus::Response> response)
+{
+  RCLCPP_INFO_STREAM(this->get_logger(), "Received request for exposure setting");
+  response->status = false;
+  response->value = 0.0;
+  response->description = "";
+  if(isCameraConnected == true) {
+    //Create event
+    auto eventptr = std::make_shared<getExposureRequest>(1, response, this);
+    //Insert event request into queue
+    insertEvent(eventptr);
+
+    while (eventptr->complete == false) {
+      usleep(1); //TODO: Added in an attempt to stabilise thread sync. Just an experiment, I know ultimately more mutexes are needed.
+    }
+  } else {
+    response->description = "Camera disconnected";
+  }
+  if (response->status == true) {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->value);
+  } else {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
+  }
+}
+
+void DataCamera::setexposure_callback(
+  const std::shared_ptr<interfaces::srv::StringRequest::Request> request,
+  std::shared_ptr<interfaces::srv::StringRequest::Response> response)
+{
+  RCLCPP_INFO_STREAM(this->get_logger(),
+    "Received demand for exposure setting: " << request->demand);
+  response->status = false;
+  response->description = "";
+  if(isCameraConnected == true) {
+    //Create event
+    auto eventptr = std::make_shared<setExposureRequest>(1, request, response, this);
     //Insert event request into queue
     insertEvent(eventptr);
 

@@ -240,6 +240,65 @@ void setFNumberRequest::execute()
   }
 }
 
+getExposureRequest::getExposureRequest(
+  int p,
+  std::shared_ptr<interfaces::srv::StringStatus::Response> res, DataCamera * node)
+{
+  priority = p;
+  timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
+  complete = false;
+  response = res;
+  cameranode = node;
+}
+
+getExposureRequest::~getExposureRequest() {}
+
+void getExposureRequest::execute()
+{
+  char * exposureSettingValue;
+  std::string error = "";
+  bool retval = cameranode->get_setting_value("shutterspeed", &exposureSettingValue, &error);
+  if (retval == true) {
+    response->value = std::string(exposureSettingValue);
+    response->description = "";
+    response->status = true;
+  } else {
+    response->value = 0.0;
+    response->description = error;
+    response->status = false;
+  }
+  return;
+}
+
+setExposureRequest::setExposureRequest(
+  int p,
+  std::shared_ptr<interfaces::srv::StringRequest::Request> req,
+  std::shared_ptr<interfaces::srv::StringRequest::Response> res, DataCamera * node)
+{
+  priority = p;
+  timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
+  cameranode = node;
+  request = req;
+  response = res;
+}
+
+setExposureRequest::~setExposureRequest() {}
+
+void setExposureRequest::execute()
+{
+  std::string error;
+  const char * dem = (request->demand).c_str();
+  bool retVal = cameranode->set_menu_setting_value("shutterspeed", dem, &error);
+
+  if( (retVal == true)) {
+    response->status = true;
+    response->description = "";
+  } else {
+    response->status = false;
+    response->description = error;
+  }
+}
+
 sequencePhotoRequest::sequencePhotoRequest(
   int p, int n, std::string goalID,
   std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> gh,
