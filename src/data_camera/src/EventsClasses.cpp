@@ -347,9 +347,8 @@ void setFocusModeRequest::execute()
 {
   //This one is a little different. Nikon cameras will only let you change focus mode if you are in liveview mode
   std::string error;
-  char liveviewsetting = 'onoff';
-  const char * liveviewptr = &liveviewsetting;
-  bool retVal = cameranode->set_menu_setting_value("viewfinder", liveviewptr, &error);  //FIXME: Doesn't work because it is a toggle type setting
+  bool liveviewsetting = true;
+  bool retVal = cameranode->change_toggle_setting_value("viewfinder", liveviewsetting, &error);
   if(retVal == true )
   {  
     const char * dem = (request->demand).c_str();

@@ -226,7 +226,114 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
     const_cast<char *>(value)) == 0);
 }
 
-//TODO: Add a function to set a toggle setting
+bool DataCamera::change_toggle_setting_value(char * key, bool value, std::string *err)
+{
+  //FIXME: Finish writing this function. When I left it I was just trying to figure out how to change a toggle setting.
+  //Now that is done the function needs to properly check the current value of the setting, see if it needs changing,
+  //And then do the change if neccessary. The function was written in an attempt to trigger the live view so that the focus
+  // mode could then be changed. Despite changing the live view, the focus mode still doesnt seem to want to change, but
+  // I might as well finish this function because it would be useful to have.
+  int ret = 0;
+
+  CameraWidget *widget = NULL;
+  CameraWidget *child = NULL;
+  *err = "";
+  
+  int* demand;
+  if (value == true)
+  {
+    *demand = 1;
+  }
+  else
+  {
+    *demand = 0;
+  }
+
+
+  //Fetch configuration widget
+  ret = gp_camera_get_config(cameraHandle, &widget, context);
+  if(ret != GP_OK) {
+    *err = "Failed to get configuration widget: " +
+      std::string(gp_port_result_as_string(ret)) + " " + errorstring;
+  } else {
+    //TODO: The following two function calls are taken from the libgphoto2 github samples. It seems like only one should be necessary, and worth experimenting with.
+    ret = gp_widget_get_child_by_name(widget, key, &child);
+    if (ret < GP_OK) {
+      ret = gp_widget_get_child_by_label(widget, key, &child);
+    }
+  }
+  
+  //Check information about widget
+  const char* widgetinfo;
+  ret = gp_widget_get_info(child,&widgetinfo);
+  std::cout << "gp_widget_get_info() returned: " << gp_port_result_as_string(ret) << std::endl;
+  std::cout << "liveview widget info: " << widgetinfo << std::endl;
+
+  const char* widgetname;
+  ret = gp_widget_get_name(child,&widgetname);
+  std::cout << "gp_widget_get_name() returned: " << gp_port_result_as_string(ret) << std::endl;
+  std::cout << "liveview widget name: " << widgetname << std::endl;
+
+  CameraWidgetType widgetType;
+  ret = gp_widget_get_type(child,&widgetType);
+  std::cout << "gp_widget_get_type() returned: " << gp_port_result_as_string(ret) << std::endl;
+  std::cout << "liveview widget type: " << widgetType << std::endl;
+
+  int* val;
+  *val = 50;
+  ret = gp_widget_get_value(child,val);
+  std::cout << "gp_widget_get_value() returned: " << gp_port_result_as_string(ret) << std::endl;
+  std::cout << "Current value of liveview widget is: " << *val << std::endl;
+
+  if(ret == GP_OK) {
+    ret = gp_widget_set_value(child, demand);
+    if(ret != GP_OK) {
+      *err = "Failed to set value to widget: " + std::string(gp_port_result_as_string(ret)) + " " +
+        errorstring;
+    }
+  }
+  if(ret == GP_OK) {
+    ret = gp_camera_set_config(cameraHandle, widget, context);
+    if(ret != GP_OK) {
+      *err = "Failed to apply new configuration widget to camera: " +
+        std::string(gp_port_result_as_string(ret)) + " " + errorstring;
+    }
+  }
+  /*
+  //Check setting reported by camera matches new value
+  if(ret == GP_OK) {
+    if (get_setting_value(key, &value, err) == false) {
+      *err = "Failed to check updated setting value from camera:" + errorstring;
+    }
+  }
+  */
+  /*
+  if( (ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
+    const_cast<char *>(value)) != 0) )
+  {
+    *err = "Failed to update setting on the camera: " + errorstring;
+  }
+  */
+  //Publish event to camera info topic
+  /*
+  auto eventmessage = interfaces::msg::Event();
+  if((ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
+    const_cast<char *>(value)) == 0))
+  {
+    eventmessage.event = "Updated value of setting " + std::string(key) + " on camera to " +
+      std::string(demand);
+    eventpublisher->publish(eventmessage);
+  } else {
+    eventmessage.event = "Failed to update value of setting " + std::string(key) +
+      " on camera to " + std::string(demand);
+    eventpublisher->publish(eventmessage);
+  }
+  */
+
+  //return  (ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
+  //  const_cast<char *>(value)) == 0);
+  return ret == GP_OK;
+}
 
 bool DataCamera::capture_image()
 {
