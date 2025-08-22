@@ -299,6 +299,73 @@ void setExposureRequest::execute()
   }
 }
 
+getFocusModeRequest::getFocusModeRequest(
+  int p,
+  std::shared_ptr<interfaces::srv::StringStatus::Response> res, DataCamera * node)
+{
+  priority = p;
+  timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
+  complete = false;
+  response = res;
+  cameranode = node;
+}
+
+getFocusModeRequest::~getFocusModeRequest() {}
+
+void getFocusModeRequest::execute()
+{
+  char * focusModeSettingValue;
+  std::string error = "";
+  bool retval = cameranode->get_setting_value("focusmode", &focusModeSettingValue, &error);
+  if (retval == true) {
+    response->value = std::string(focusModeSettingValue);
+    response->description = "";
+    response->status = true;
+  } else {
+    response->value = 0.0;
+    response->description = error;
+    response->status = false;
+  }
+  return;
+}
+
+setFocusModeRequest::setFocusModeRequest(
+  int p,
+  std::shared_ptr<interfaces::srv::StringRequest::Request> req,
+  std::shared_ptr<interfaces::srv::StringRequest::Response> res, DataCamera * node)
+{
+  priority = p;
+  timestamp = std::format("{:%FT%TZ}", std::chrono::system_clock::now());
+  cameranode = node;
+  request = req;
+  response = res;
+}
+
+setFocusModeRequest::~setFocusModeRequest() {}
+
+void setFocusModeRequest::execute()
+{
+  //This one is a little different. Nikon cameras will only let you change focus mode if you are in liveview mode
+  std::string error;
+  char liveviewsetting = 'onoff';
+  const char * liveviewptr = &liveviewsetting;
+  bool retVal = cameranode->set_menu_setting_value("viewfinder", liveviewptr, &error);  //FIXME: Doesn't work because it is a toggle type setting
+  if(retVal == true )
+  {  
+    const char * dem = (request->demand).c_str();
+    retVal = cameranode->set_menu_setting_value("focusmode", dem, &error);
+  }
+
+  if( (retVal == true)) {
+    response->status = true;
+    response->description = "";
+  } else {
+    response->status = false;
+    response->description = error;
+  }
+
+}
+
 sequencePhotoRequest::sequencePhotoRequest(
   int p, int n, std::string goalID,
   std::shared_ptr<rclcpp_action::ServerGoalHandle<interfaces::action::Sequence>> gh,

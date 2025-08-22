@@ -58,6 +58,14 @@ DataCamera::DataCamera()
       "set_exposure",
     std::bind(&DataCamera::setexposure_callback, this, std::placeholders::_1, std::placeholders::_2)
   );
+  getfocusmodeservice = this->create_service<interfaces::srv::StringStatus>(
+      "get_focus_mode",
+    std::bind(&DataCamera::getfocusmode_callback, this, std::placeholders::_1, std::placeholders::_2)
+  );
+  setfocusmodeservice = this->create_service<interfaces::srv::StringRequest>(
+      "set_focus_mode",
+    std::bind(&DataCamera::setfocusmode_callback, this, std::placeholders::_1, std::placeholders::_2)
+  );
     //Initialise actions
   requestSequenceAction = rclcpp_action::create_server<interfaces::action::Sequence>(
     this, "sequence",
@@ -217,6 +225,8 @@ bool DataCamera::set_menu_setting_value(char * key, const char * demand, std::st
   return  (ret == GP_OK) && (invalidDemand == false) && (strcmp(demand,
     const_cast<char *>(value)) == 0);
 }
+
+//TODO: Add a function to set a toggle setting
 
 bool DataCamera::capture_image()
 {
@@ -515,7 +525,7 @@ void DataCamera::getfnumber_callback(
 {
   RCLCPP_INFO_STREAM(this->get_logger(), "Received request for f-number setting");
   response->status = false;
-  response->value = 0.0;
+  response->value = "";
   response->description = "";
   if(isCameraConnected == true) {
     //Create event
@@ -569,7 +579,7 @@ void DataCamera::getexposure_callback(
 {
   RCLCPP_INFO_STREAM(this->get_logger(), "Received request for exposure setting");
   response->status = false;
-  response->value = 0.0;
+  response->value = "";
   response->description = "";
   if(isCameraConnected == true) {
     //Create event
@@ -601,6 +611,60 @@ void DataCamera::setexposure_callback(
   if(isCameraConnected == true) {
     //Create event
     auto eventptr = std::make_shared<setExposureRequest>(1, request, response, this);
+    //Insert event request into queue
+    insertEvent(eventptr);
+
+    while (eventptr->complete == false) {
+      usleep(1); //TODO: Added in an attempt to stabilise thread sync. Just an experiment, I know ultimately more mutexes are needed.
+    }
+  } else {
+    response->description = "Camera disconnected";
+  }
+  if (response->status == true) {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->status);
+  } else {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
+  }
+}
+
+void DataCamera::getfocusmode_callback(
+  const std::shared_ptr<interfaces::srv::StringStatus::Request> request,
+  std::shared_ptr<interfaces::srv::StringStatus::Response> response)
+{
+  RCLCPP_INFO_STREAM(this->get_logger(), "Received request for focus mode setting");
+  response->status = false;
+  response->value = "";
+  response->description = "";
+  if(isCameraConnected == true) {
+    //Create event
+    auto eventptr = std::make_shared<getFocusModeRequest>(1, response, this);
+    //Insert event request into queue
+    insertEvent(eventptr);
+
+    while (eventptr->complete == false) {
+      usleep(1); //TODO: Added in an attempt to stabilise thread sync. Just an experiment, I know ultimately more mutexes are needed.
+    }
+  } else {
+    response->description = "Camera disconnected";
+  }
+  if (response->status == true) {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with " << response->value);
+  } else {
+    RCLCPP_INFO_STREAM(this->get_logger(), "Responding with fail status");
+  }
+}
+
+void DataCamera::setfocusmode_callback(
+  const std::shared_ptr<interfaces::srv::StringRequest::Request> request,
+  std::shared_ptr<interfaces::srv::StringRequest::Response> response)
+{
+  RCLCPP_INFO_STREAM(this->get_logger(),
+    "Received demand for focus mode setting: " << request->demand);
+  response->status = false;
+  response->description = "";
+  if(isCameraConnected == true) {
+    //Create event
+    auto eventptr = std::make_shared<setFocusModeRequest>(1, request, response, this);
     //Insert event request into queue
     insertEvent(eventptr);
 

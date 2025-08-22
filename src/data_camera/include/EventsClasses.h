@@ -107,7 +107,6 @@ private:
 
 class getExposureRequest: public EventRequest
 {
-  //TODO: Add implementation to source file
 public:
   getExposureRequest(int, std::shared_ptr < interfaces::srv::StringStatus::Response >,
     DataCamera *);
@@ -119,11 +118,33 @@ private:
 
 class setExposureRequest: public EventRequest
 {
-  //TODO: Add implementation to source file
 public:
   setExposureRequest(int, std::shared_ptr < interfaces::srv::StringRequest::Request >,
     std::shared_ptr < interfaces::srv::StringRequest::Response > response, DataCamera *);
   ~setExposureRequest();
+  void execute() override;
+private:
+  std::shared_ptr < interfaces::srv::StringRequest::Request > request;
+  std::shared_ptr < interfaces::srv::StringRequest::Response > response;
+};
+
+class getFocusModeRequest: public EventRequest
+{
+public:
+  getFocusModeRequest(int, std::shared_ptr < interfaces::srv::StringStatus::Response >,
+    DataCamera *);
+  ~getFocusModeRequest();
+  void execute() override;
+private:
+  std::shared_ptr < interfaces::srv::StringStatus::Response > response;
+};
+
+class setFocusModeRequest: public EventRequest
+{
+public:
+  setFocusModeRequest(int, std::shared_ptr < interfaces::srv::StringRequest::Request >,
+    std::shared_ptr < interfaces::srv::StringRequest::Response > response, DataCamera *);
+  ~setFocusModeRequest();
   void execute() override;
 private:
   std::shared_ptr < interfaces::srv::StringRequest::Request > request;

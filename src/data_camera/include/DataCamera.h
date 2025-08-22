@@ -56,10 +56,12 @@ private:
   rclcpp::Service < interfaces::srv::IntRequest > ::SharedPtr setisoservice;
   rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getqualservice;
   rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setqualservice;
-  rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getfnumberservice;
-  rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setfnumberservice;
-  rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getexposureservice;
+  rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getfnumberservice;  
+  rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setfnumberservice; 
+  rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getexposureservice; 
   rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setexposureservice;
+  rclcpp::Service < interfaces::srv::StringStatus > ::SharedPtr getfocusmodeservice;
+  rclcpp::Service < interfaces::srv::StringRequest > ::SharedPtr setfocusmodeservice; //FIXME: libgphoto issue. For some reason the focus mode setting is read only despite the camera being in manual mode
   rclcpp_action::Server < interfaces::action::Sequence > ::SharedPtr requestSequenceAction;
 
 
@@ -101,9 +103,14 @@ private:
   void setexposure_callback(
     const std::shared_ptr < interfaces::srv::StringRequest::Request >,
     std::shared_ptr < interfaces::srv::StringRequest::Response >);
+  void getfocusmode_callback(
+    const std::shared_ptr < interfaces::srv::StringStatus::Request >,
+    std::shared_ptr < interfaces::srv::StringStatus::Response >);
+  void setfocusmode_callback(
+    const std::shared_ptr < interfaces::srv::StringRequest::Request >,
+    std::shared_ptr < interfaces::srv::StringRequest::Response >);
   //TODO: The front end probably will want the ability to request possible options for a given service, rather than having to guess first and check the error description
   //TODO: In addition to above, probably want a service that fetches all configuration values simultaneously
-  //TODO: Add a service to be able to set focus mode to manual
   //TODO: Add service to enable/disable long exposure noise reduction
   //TODO: Add a service to enable/disable flash
   //TODO: Add a service for setting white balance (Does this matter if shooting in RAW?)
