@@ -7,10 +7,10 @@
 #include "rclcpp/rclcpp.hpp"
 #include "interfaces/msg/event.hpp"
 
+//Declare some helper functions for ncurses (copied from ncurses tutorials, might end up removing these in future refactoring)
 WINDOW *create_newwin(int height, int width, int starty, int startx);
 void destroy_win(WINDOW *local_win);
 std::string generateStatusString(int batt, double expo, int iso, double focalLength);
-
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define CTRLD	4
@@ -24,7 +24,53 @@ char *menuItems[] = {
 	"Exit"
 };
 
-int main(){
+//Declare ros node
+class SimpleControlInterface : public rclcpp::Node
+{
+	public:
+		SimpleControlInterface(WINDOW* feedWindowptr)
+			: Node("simple_control")
+		{
+			eventFeedWindowptr = feedWindowptr;
+			cameraEventSubscriber = this->create_subscription<interfaces::msg::Event>("camera_events",10, std::bind(&SimpleControlInterface::camera_event_topic_callback,this,std::placeholders::_1));
+		}
+
+	private:
+		rclcpp::Subscription<interfaces::msg::Event>::SharedPtr cameraEventSubscriber;
+		void camera_event_topic_callback(const interfaces::msg::Event & msg)
+		{
+			//Add new event to buffer		//TODO:: This can probably be better implemented as an ncurses menu, but for now I am just trying to get something on screen
+			feedBuffer.push_back(msg.event);
+			//Check buffer size
+			if (feedBuffer.size() > feedBufferMax)
+			{
+				feedBuffer.erase(feedBuffer.begin());
+			}
+			//Clear window
+			werase(eventFeedWindowptr);
+			//Determine which ones to print, and where
+			for(int i = 0; i < feedBuffer.size(); i++)
+			{
+				mvwaddstr(eventFeedWindowptr,i+2,2,feedBuffer[i].c_str());
+			}
+			wrefresh(eventFeedWindowptr);
+			
+
+		}
+		WINDOW* eventFeedWindowptr;
+		std::vector<std::string> feedBuffer;
+		int feedBufferMax = 10;
+
+};
+
+
+
+
+
+
+
+
+int main(int argc, char * argv[]){
 	//Declare some menu variables
 	ITEM **top_items;
 	int c;
@@ -90,8 +136,14 @@ int main(){
 
 
 	refresh();
+
+	//Spin up ROS node (need to determine exactly where is best for this, just trying to get something on screen for now)
+	rclcpp::init(argc,argv);
+	rclcpp::spin(std::make_shared<SimpleControlInterface>(feedWin));
+
 	getch();	//Wait for user input, just so we can see the screen
 	//Clean up
+	rclcpp::shutdown();
 	free_item(top_items[0]);
 	free_item(top_items[1]);
 	free_menu(top_menu);
@@ -101,6 +153,7 @@ int main(){
 	destroy_win(menuWin);
 	destroy_win(feedWin);
 	endwin();
+
 
 	return 0;
 }
