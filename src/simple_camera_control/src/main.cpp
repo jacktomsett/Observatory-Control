@@ -5,7 +5,7 @@
 #include <string>
 
 #include "rclcpp/rclcpp.hpp"
-
+#include "interfaces/msg/event.hpp"
 
 WINDOW *create_newwin(int height, int width, int starty, int startx);
 void destroy_win(WINDOW *local_win);
