@@ -10,6 +10,16 @@ find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+find_package(rclcpp REQUIRED)
+
+add_executable(simple_control src/main.cpp)
+target_link_libraries(simple_control -lncurses -lmenu rclcpp::rclcpp)
+target_include_directories(simple_control PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+	$<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+
+install(TARGETS simple_control
+	DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
