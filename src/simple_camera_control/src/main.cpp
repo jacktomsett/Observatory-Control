@@ -118,7 +118,7 @@ int main(int argc, char * argv[]){
 	//Associate menu to menuWin, should probably create the menu after the windows
 	top_menu = new_menu((ITEM **)top_items);
 	set_menu_win(top_menu,menuWin);
-	set_menu_sub(top_menu,derwin(menuWin,LINES-(2 * bannerHeight),COLS - feedWidth-1,0,0));
+	set_menu_sub(top_menu,derwin(menuWin,LINES-(2 * bannerHeight)-4,COLS - feedWidth-1 -2,1,1));
 	set_menu_mark(top_menu," * ");
 	post_menu(top_menu);
 	wrefresh(menuWin);
