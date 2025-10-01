@@ -32,6 +32,7 @@ class SimpleControlInterface : public rclcpp::Node
 			: Node("simple_control")
 		{
 			eventFeedWindowptr = feedWindowptr;
+			feedBufferMax = getmaxy(eventFeedWindowptr) - 2;
 			cameraEventSubscriber = this->create_subscription<interfaces::msg::Event>("camera_events",10, std::bind(&SimpleControlInterface::camera_event_topic_callback,this,std::placeholders::_1));
 		}
 
@@ -48,10 +49,11 @@ class SimpleControlInterface : public rclcpp::Node
 			}
 			//Clear window
 			werase(eventFeedWindowptr);
+			box(eventFeedWindowptr, 0, 0);
 			//Determine which ones to print, and where
 			for(int i = 0; i < feedBuffer.size(); i++)
 			{
-				mvwaddstr(eventFeedWindowptr,i+2,2,feedBuffer[i].c_str());
+				mvwaddstr(eventFeedWindowptr,i+1,2,feedBuffer[i].c_str());
 			}
 			wrefresh(eventFeedWindowptr);
 			
@@ -59,7 +61,7 @@ class SimpleControlInterface : public rclcpp::Node
 		}
 		WINDOW* eventFeedWindowptr;
 		std::vector<std::string> feedBuffer;
-		int feedBufferMax = 10;
+		int feedBufferMax;
 
 };
 
@@ -106,17 +108,17 @@ int main(int argc, char * argv[]){
 	//Window size parameters
 	int bannerHeight = 3; //The height of the conn, status and warn windows
 	int connWidth = 15;
-	int feedWidth = 30;
+	int feedWidth = 60;
 	statusWin = create_newwin(bannerHeight,COLS,LINES-bannerHeight,0);
 	connWin = create_newwin(bannerHeight,connWidth,0,COLS-connWidth);
 	warnWin   = create_newwin(bannerHeight,COLS-connWidth,0,0);
-	menuWin   = create_newwin(LINES-(2 * bannerHeight),COLS - feedWidth,bannerHeight,0);
-	feedWin   = create_newwin(LINES-(2*bannerHeight),COLS-feedWidth,bannerHeight,(COLS-feedWidth)+1);
+	menuWin   = create_newwin(LINES-(2 * bannerHeight),COLS - feedWidth-1,bannerHeight,0);
+	feedWin   = create_newwin(LINES-(2*bannerHeight),COLS-feedWidth,bannerHeight,(COLS-feedWidth));
 	nodelay(menuWin,TRUE);
 	//Associate menu to menuWin, should probably create the menu after the windows
 	top_menu = new_menu((ITEM **)top_items);
 	set_menu_win(top_menu,menuWin);
-	set_menu_sub(top_menu,derwin(menuWin,LINES-(2 * bannerHeight),COLS - feedWidth,0,0));
+	set_menu_sub(top_menu,derwin(menuWin,LINES-(2 * bannerHeight),COLS - feedWidth-1,0,0));
 	set_menu_mark(top_menu," * ");
 	post_menu(top_menu);
 	wrefresh(menuWin);
