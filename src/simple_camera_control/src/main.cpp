@@ -72,27 +72,29 @@ class SimpleControlInterface : public rclcpp::Node
 
 int main(int argc, char * argv[]){
 	//Declare some menu variables
+	
 	ITEM **top_items;
 	int c;
 	MENU *top_menu;
 	int n_top_choices, i;
 	ITEM *cur_top_item;
 
+	bool exitFlag = false; //Signal to exit loop
 
 	initscr();	//Start curses mode
 	cbreak();
 	noecho();
+	nodelay(stdscr,TRUE); //Should make getch() non blocking
 	keypad(stdscr,TRUE);
 
 	//set up menu
 	n_top_choices = ARRAY_SIZE(menuItems);
-	top_items = (ITEM **)calloc(n_top_choices + 1, sizeof(ITEM *));
+	top_items = (ITEM **)calloc(n_top_choices, sizeof(ITEM *));
 
 	for(i = 0; i < n_top_choices; i++)
 	{
 		top_items[i] = new_item(menuItems[i], menuItems[i]);
 	}
-	top_items[n_top_choices] = (ITEM *)NULL;
 
 	//Declare windows
 	WINDOW* statusWin;
@@ -110,11 +112,12 @@ int main(int argc, char * argv[]){
 	warnWin   = create_newwin(bannerHeight,COLS-connWidth,0,0);
 	menuWin   = create_newwin(LINES-(2 * bannerHeight),COLS - feedWidth,bannerHeight,0);
 	feedWin   = create_newwin(LINES-(2*bannerHeight),COLS-feedWidth,bannerHeight,(COLS-feedWidth)+1);
-
+	//nodelay(menuWin,TRUE);
 	//Associate menu to menuWin, should probably create the menu after the windows
 	top_menu = new_menu((ITEM **)top_items);
 	set_menu_win(top_menu,menuWin);
-	set_menu_sub(top_menu,derwin(menuWin,6,38,3,1));
+	set_menu_sub(top_menu,derwin(menuWin,LINES-(2 * bannerHeight),COLS - feedWidth,0,0));
+	set_menu_mark(top_menu," * ");
 	post_menu(top_menu);
 	wrefresh(menuWin);
 	//Dummy data:
@@ -139,14 +142,35 @@ int main(int argc, char * argv[]){
 
 	//Spin up ROS node (need to determine exactly where is best for this, just trying to get something on screen for now)
 	rclcpp::init(argc,argv);
-	rclcpp::spin(std::make_shared<SimpleControlInterface>(feedWin));
-
-	getch();	//Wait for user input, just so we can see the screen
+	rclcpp::Node::SharedPtr nodeHandle = std::make_shared<SimpleControlInterface>(feedWin);
+	rclcpp::executors::SingleThreadedExecutor executor;
+	executor.add_node(nodeHandle);
+	while( exitFlag == false)
+	{
+		executor.spin_some(); //Check event topic feed. Haven't fully thought through what spin function to use. There is a chance if the camera node is sending too many topics the user wont get control (unlikely to happen, but still not ideal). Ideally this would have its own thread
+					       
+		c = wgetch(menuWin);
+		switch(c)
+		{
+			case 'j':
+				menu_driver(top_menu, REQ_DOWN_ITEM);
+				break;
+			case 'k':
+				menu_driver(top_menu, REQ_UP_ITEM);
+				break;
+		}
+		wrefresh(menuWin);
+		
+	}
+	
 	//Clean up
 	rclcpp::shutdown();
-	free_item(top_items[0]);
-	free_item(top_items[1]);
+	unpost_menu(top_menu);
 	free_menu(top_menu);
+	for(i = 0; i < n_top_choices; ++i)
+	{
+		free_item(top_items[i]);
+	}
 	destroy_win(statusWin);
 	destroy_win(connWin);
 	destroy_win(warnWin);
