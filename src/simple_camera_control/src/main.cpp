@@ -84,7 +84,7 @@ int main(int argc, char * argv[]){
 	initscr();	//Start curses mode
 	cbreak();
 	noecho();
-	nodelay(stdscr,TRUE); //Should make getch() non blocking
+	//nodelay(stdscr,TRUE); //Should make getch() non blocking
 	keypad(stdscr,TRUE);
 
 	//set up menu
@@ -112,7 +112,7 @@ int main(int argc, char * argv[]){
 	warnWin   = create_newwin(bannerHeight,COLS-connWidth,0,0);
 	menuWin   = create_newwin(LINES-(2 * bannerHeight),COLS - feedWidth,bannerHeight,0);
 	feedWin   = create_newwin(LINES-(2*bannerHeight),COLS-feedWidth,bannerHeight,(COLS-feedWidth)+1);
-	//nodelay(menuWin,TRUE);
+	nodelay(menuWin,TRUE);
 	//Associate menu to menuWin, should probably create the menu after the windows
 	top_menu = new_menu((ITEM **)top_items);
 	set_menu_win(top_menu,menuWin);
