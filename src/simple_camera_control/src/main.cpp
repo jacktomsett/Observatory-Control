@@ -15,13 +15,33 @@ std::string generateStatusString(int batt, double expo, int iso, double focalLen
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define CTRLD	4
 
-char *menuItems[] = {
+char *topMenuItems[] = {
 	"Change Setting",
 	"Take Photo",
 	"Request Sequence",
 	"Download Photos",
 	"Shutdown Node",
-	"Exit"
+	"Exit",
+	(char *)NULL,
+};
+
+char *settingMenuItems[] = {
+	"Exposure",
+	"ISO",
+	"Aperture",
+	(char *)NULL,
+};
+
+char *sequenceMenuItems[] = {
+	"Length",
+	"Name",
+	"StartSequence",
+	(char *)NULL,
+};
+
+char *emptyMenuItems[] = {
+	"",
+	(char *)NULL,
 };
 
 //Declare ros node
@@ -76,10 +96,15 @@ int main(int argc, char * argv[]){
 	//Declare some menu variables
 	
 	ITEM **top_items;
+	ITEM **setting_items;
+	ITEM **sequence_items;
+	ITEM **empty_items;
 	int c;
 	MENU *top_menu;
-	int n_top_choices, i;
-	ITEM *cur_top_item;
+	MENU *setting_menu;
+	MENU *seq_menu;
+	MENU *empty_menu;
+	int n_top_choices, n_setting_choices, n_sequence_choices, n_empty_choices;
 
 	bool exitFlag = false; //Signal to exit loop
 
@@ -90,12 +115,36 @@ int main(int argc, char * argv[]){
 	keypad(stdscr,TRUE);
 
 	//set up menu
-	n_top_choices = ARRAY_SIZE(menuItems);
+	n_top_choices = ARRAY_SIZE(topMenuItems);
 	top_items = (ITEM **)calloc(n_top_choices, sizeof(ITEM *));
 
-	for(i = 0; i < n_top_choices; i++)
+	for(int i = 0; i < n_top_choices; i++)
 	{
-		top_items[i] = new_item(menuItems[i], menuItems[i]);
+		top_items[i] = new_item(topMenuItems[i],"");
+	}
+
+	n_setting_choices = ARRAY_SIZE(settingMenuItems);
+	setting_items = (ITEM **)calloc(n_top_choices, sizeof(ITEM *));
+
+	for(int i = 0; i < n_setting_choices; i++)
+	{
+		setting_items[i] = new_item(settingMenuItems[i],"");
+	}
+
+	n_sequence_choices = ARRAY_SIZE(sequenceMenuItems);
+	sequence_items = (ITEM **)calloc(n_sequence_choices, sizeof(ITEM *));
+
+	for(int i = 0; i < n_sequence_choices; i++)
+	{
+		sequence_items[i] = new_item(sequenceMenuItems[i],"");
+	}
+
+	n_empty_choices = ARRAY_SIZE(emptyMenuItems);
+	empty_items = (ITEM **)calloc(n_empty_choices, sizeof(ITEM *));
+
+	for(int i = 0; i < n_empty_choices; i++)
+	{
+		empty_items[i] = new_item(emptyMenuItems[i],"");
 	}
 
 	//Declare windows
@@ -104,6 +153,7 @@ int main(int argc, char * argv[]){
 	WINDOW* menuWin;
 	WINDOW* warnWin;
 	WINDOW* connWin;
+	WINDOW* contextWin;
 	refresh();
 	//Window size parameters
 	int bannerHeight = 3; //The height of the conn, status and warn windows
@@ -112,16 +162,37 @@ int main(int argc, char * argv[]){
 	statusWin = create_newwin(bannerHeight,COLS,LINES-bannerHeight,0);
 	connWin = create_newwin(bannerHeight,connWidth,0,COLS-connWidth);
 	warnWin   = create_newwin(bannerHeight,COLS-connWidth,0,0);
-	menuWin   = create_newwin(LINES-(2 * bannerHeight),COLS - feedWidth-1,bannerHeight,0);
-	feedWin   = create_newwin(LINES-(2*bannerHeight),COLS-feedWidth,bannerHeight,(COLS-feedWidth));
+	menuWin   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,0);
+	contextWin   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,(COLS - feedWidth-1)/2);
+	feedWin   = create_newwin(LINES-(2*bannerHeight),COLS-feedWidth-1,bannerHeight,(COLS-feedWidth));
+	
 	nodelay(menuWin,TRUE);
 	//Associate menu to menuWin, should probably create the menu after the windows
 	top_menu = new_menu((ITEM **)top_items);
 	set_menu_win(top_menu,menuWin);
-	set_menu_sub(top_menu,derwin(menuWin,LINES-(2 * bannerHeight)-4,COLS - feedWidth-1 -2,1,1));
-	set_menu_mark(top_menu," * ");
+	set_menu_sub(top_menu,derwin(menuWin,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
+	set_menu_mark(top_menu,"");
 	post_menu(top_menu);
+	//Associate sub menus to menu win also, but only post setting menu
+	
+	setting_menu = new_menu((ITEM **)setting_items);
+	set_menu_win(setting_menu,contextWin);
+	set_menu_sub(setting_menu,derwin(contextWin,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
+	set_menu_mark(setting_menu,"");
+	post_menu(setting_menu);
+	
+	seq_menu = new_menu((ITEM **)sequence_items);
+	set_menu_win(seq_menu,contextWin);
+	set_menu_sub(seq_menu,derwin(contextWin,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
+	set_menu_mark(seq_menu,"");
+
+	empty_menu = new_menu((ITEM **)empty_items);
+	set_menu_win(empty_menu,contextWin);
+	set_menu_sub(empty_menu,derwin(contextWin,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
+	set_menu_mark(empty_menu,"");
+	
 	wrefresh(menuWin);
+	wrefresh(contextWin);
 	//Dummy data:
 	int battery = 5;
 	double exp = 15;
@@ -147,21 +218,63 @@ int main(int argc, char * argv[]){
 	rclcpp::Node::SharedPtr nodeHandle = std::make_shared<SimpleControlInterface>(feedWin);
 	rclcpp::executors::SingleThreadedExecutor executor;
 	executor.add_node(nodeHandle);
+	int previousTopChoice = 0;
+	int currentTopChoice = 1;
+	WINDOW* focusedWindow = menuWin;
+	MENU *focusedMenu = top_menu;
+	MENU *activeContextMenu = setting_menu;
 	while( exitFlag == false)
 	{
 		executor.spin_some(); //Check event topic feed. Haven't fully thought through what spin function to use. There is a chance if the camera node is sending too many topics the user wont get control (unlikely to happen, but still not ideal). Ideally this would have its own thread
 					       
-		c = wgetch(menuWin);
+		c = wgetch(focusedWindow);
 		switch(c)
 		{
 			case 'j':
-				menu_driver(top_menu, REQ_DOWN_ITEM);
+				if(focusedWindow == menuWin)
+				{
+					unpost_menu(activeContextMenu);
+				}
+				menu_driver(focusedMenu, REQ_DOWN_ITEM);
+				switch (item_index(current_item(top_menu)))
+				{
+				case 0:
+					activeContextMenu = setting_menu;
+					break;
+				case 2:
+					activeContextMenu = seq_menu;
+					break;
+				
+				default:
+					activeContextMenu = empty_menu;
+					break;
+				}
+				post_menu(activeContextMenu);
 				break;
 			case 'k':
-				menu_driver(top_menu, REQ_UP_ITEM);
+				if(focusedWindow == menuWin)
+				{
+					unpost_menu(activeContextMenu);
+				}
+				menu_driver(focusedMenu, REQ_UP_ITEM);
+				switch (item_index(current_item(top_menu)))
+				{
+				case 0:
+					activeContextMenu = setting_menu;
+					break;
+				case 2:
+					activeContextMenu = seq_menu;
+					break;
+				
+				default:
+					activeContextMenu = empty_menu;
+					break;
+				}
+				post_menu(activeContextMenu);
 				break;
 		}
 		wrefresh(menuWin);
+		wrefresh(contextWin);
 		
 	}
 	
@@ -169,7 +282,7 @@ int main(int argc, char * argv[]){
 	rclcpp::shutdown();
 	unpost_menu(top_menu);
 	free_menu(top_menu);
-	for(i = 0; i < n_top_choices; ++i)
+	for(int i = 0; i < n_top_choices; ++i)
 	{
 		free_item(top_items[i]);
 	}
