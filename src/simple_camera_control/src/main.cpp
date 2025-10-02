@@ -105,7 +105,7 @@ int main(int argc, char * argv[]){
 	MENU *seq_menu;
 	MENU *empty_menu;
 	int n_top_choices, n_setting_choices, n_sequence_choices, n_empty_choices;
-
+	std::vector<MENU**> contextMenus = {&setting_menu,&empty_menu,&seq_menu,&empty_menu,&empty_menu,&empty_menu,&empty_menu};
 	bool exitFlag = false; //Signal to exit loop
 
 	initscr();	//Start curses mode
@@ -218,63 +218,30 @@ int main(int argc, char * argv[]){
 	rclcpp::Node::SharedPtr nodeHandle = std::make_shared<SimpleControlInterface>(feedWin);
 	rclcpp::executors::SingleThreadedExecutor executor;
 	executor.add_node(nodeHandle);
-	int previousTopChoice = 0;
-	int currentTopChoice = 1;
 	WINDOW* focusedWindow = menuWin;
 	MENU *focusedMenu = top_menu;
-	MENU *activeContextMenu = setting_menu;
 	while( exitFlag == false)
 	{
 		executor.spin_some(); //Check event topic feed. Haven't fully thought through what spin function to use. There is a chance if the camera node is sending too many topics the user wont get control (unlikely to happen, but still not ideal). Ideally this would have its own thread
-					       
-		c = wgetch(focusedWindow);
-		switch(c)
+		if(focusedWindow == menuWin)
 		{
-			case 'j':
-				if(focusedWindow == menuWin)
-				{
-					unpost_menu(activeContextMenu);
-				}
-				menu_driver(focusedMenu, REQ_DOWN_ITEM);
-				switch (item_index(current_item(top_menu)))
-				{
-				case 0:
-					activeContextMenu = setting_menu;
+			c = wgetch(focusedWindow);
+			switch(c)
+			{
+				case 'j':
+					unpost_menu(*contextMenus[item_index(current_item(top_menu))]);
+					menu_driver(focusedMenu, REQ_DOWN_ITEM);
+					post_menu(*contextMenus[item_index(current_item(top_menu))]);
 					break;
-				case 2:
-					activeContextMenu = seq_menu;
+				case 'k':
+					unpost_menu(*contextMenus[item_index(current_item(top_menu))]);
+					menu_driver(focusedMenu, REQ_UP_ITEM);
+					post_menu(*contextMenus[item_index(current_item(top_menu))]);
 					break;
-				
-				default:
-					activeContextMenu = empty_menu;
-					break;
-				}
-				post_menu(activeContextMenu);
-				break;
-			case 'k':
-				if(focusedWindow == menuWin)
-				{
-					unpost_menu(activeContextMenu);
-				}
-				menu_driver(focusedMenu, REQ_UP_ITEM);
-				switch (item_index(current_item(top_menu)))
-				{
-				case 0:
-					activeContextMenu = setting_menu;
-					break;
-				case 2:
-					activeContextMenu = seq_menu;
-					break;
-				
-				default:
-					activeContextMenu = empty_menu;
-					break;
-				}
-				post_menu(activeContextMenu);
-				break;
-		}
-		wrefresh(menuWin);
-		wrefresh(contextWin);
+			}
+			wrefresh(menuWin);
+			wrefresh(contextWin);
+		}					       
 		
 	}
 	
