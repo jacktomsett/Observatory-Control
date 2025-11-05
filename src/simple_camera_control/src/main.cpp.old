@@ -7,25 +7,54 @@
 #include "rclcpp/rclcpp.hpp"
 #include "interfaces/msg/event.hpp"
 
-//FIXME: Some nasty globals. Declared here so that all the top menu item functions can see
-//them. Still figuring out exactly how to structure the arguments of the top level menu
-//functions (ideally they should be uniform). I am imagining some kind of struct that gets
-//passed to each of them. That struct could end up containing this information
-int bannerHeight = 3; //The height of the conn, status and warn windows
-int connWidth = 15;
-int feedWidth = 60;
-
-
 //Declare some helper functions for ncurses (copied from ncurses tutorials, might end up removing these in future refactoring)
 WINDOW *create_newwin(int height, int width, int starty, int startx);
 void destroy_win(WINDOW *local_win);
 std::string generateStatusString(int batt, double expo, int iso, double focalLength);
-//Declare functions that correspond to the top level menu items
-void triggerSettingMenu(WINDOW* window);
-void triggerSequenceMenu(WINDOW* window);
-void triggerShutdown(bool* exitflag);
+void requestExposure(int exp, SimpleControlInterface* node_ptr)
+{
+	node_ptr->sendExpRequest(exp);
+}
+void requestIso(int iso, SimpleControlInterface* node_ptr)
+{
+	node_ptr->sendIsoRequest(iso);
+}
+void requestAperture(int aper, SimpleControlInterface* node_ptr)
+{
+	node_ptr->sendAperRequest(aper);
+}
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
+#define CTRLD	4
+
+char *topMenuItems[] = {
+	"Change Setting",
+	"Take Photo",
+	"Request Sequence",
+	"Download Photos",
+	"Shutdown Node",
+	"Exit",
+	(char *)NULL,
+};
 
 
+char *settingMenuItems[] = {
+	"Exposure",
+	"ISO",
+	"Aperture",
+	(char *)NULL,
+};
+
+char *sequenceMenuItems[] = {
+	"Length",
+	"Name",
+	"StartSequence",
+	(char *)NULL,
+};
+
+char *emptyMenuItems[] = {
+	"",
+	(char *)NULL,
+};
 
 //Declare ros node
 class SimpleControlInterface : public rclcpp::Node
@@ -88,13 +117,63 @@ class SimpleControlInterface : public rclcpp::Node
 
 
 
+
+
+
 int main(int argc, char * argv[]){
+	//Declare some menu variables
+	
+	ITEM **top_items;
+	ITEM **setting_items;
+	ITEM **sequence_items;
+	ITEM **empty_items;
+	int c;
+	MENU *top_menu;
+	MENU *setting_menu;
+	MENU *seq_menu;
+	MENU *empty_menu;
+	int n_top_choices, n_setting_choices, n_sequence_choices, n_empty_choices;
+	std::vector<MENU**> contextMenus = {&setting_menu,&empty_menu,&seq_menu,&empty_menu,&empty_menu,&empty_menu,&empty_menu};
+	bool exitFlag = false; //Signal to exit loop
 
 	initscr();	//Start curses mode
 	cbreak();
 	noecho();
 	//nodelay(stdscr,TRUE); //Should make getch() non blocking
 	keypad(stdscr,TRUE);
+
+	//set up menu
+	n_top_choices = ARRAY_SIZE(topMenuItems);
+	top_items = (ITEM **)calloc(n_top_choices, sizeof(ITEM *));
+
+	for(int i = 0; i < n_top_choices; i++)
+	{
+		top_items[i] = new_item(topMenuItems[i],"");
+	}
+
+	n_setting_choices = ARRAY_SIZE(settingMenuItems);
+	setting_items = (ITEM **)calloc(n_top_choices, sizeof(ITEM *));
+
+	for(int i = 0; i < n_setting_choices; i++)
+	{
+		setting_items[i] = new_item(settingMenuItems[i],"");
+	}
+
+	n_sequence_choices = ARRAY_SIZE(sequenceMenuItems);
+	sequence_items = (ITEM **)calloc(n_sequence_choices, sizeof(ITEM *));
+
+	for(int i = 0; i < n_sequence_choices; i++)
+	{
+		sequence_items[i] = new_item(sequenceMenuItems[i],"");
+	}
+
+	n_empty_choices = ARRAY_SIZE(emptyMenuItems);
+	empty_items = (ITEM **)calloc(n_empty_choices, sizeof(ITEM *));
+
+	for(int i = 0; i < n_empty_choices; i++)
+	{
+		empty_items[i] = new_item(emptyMenuItems[i],"");
+	}
 
 	//Declare windows
 	WINDOW* statusWin;
@@ -104,7 +183,10 @@ int main(int argc, char * argv[]){
 	WINDOW* connWin;
 	WINDOW* contextWin;
 	refresh();
-
+	//Window size parameters
+	int bannerHeight = 3; //The height of the conn, status and warn windows
+	int connWidth = 15;
+	int feedWidth = 60;
 	statusWin = create_newwin(bannerHeight,COLS,LINES-bannerHeight,0);
 	connWin = create_newwin(bannerHeight,connWidth,0,COLS-connWidth);
 	warnWin   = create_newwin(bannerHeight,COLS-connWidth,0,0);
@@ -113,36 +195,24 @@ int main(int argc, char * argv[]){
 	feedWin   = create_newwin(LINES-(2*bannerHeight),COLS-feedWidth-1,bannerHeight,(COLS-feedWidth));
 	
 	nodelay(menuWin,TRUE);
-
-	//Set up top level menu
-	std::vector<std::string>topMenuItems = {
-	"Change Setting",
-	"Take Photo",
-	"Request Sequence",
-	"Download Photos",
-	"Shutdown Node",
-	"Exit"
-	};
-
-	ITEM **top_items;
-	top_items = (ITEM **)calloc(topMenuItems.size()+1, sizeof(ITEM *));
-	for(int i = 0; i < topMenuItems.size(); i++)
-	{
-		top_items[i] = new_item(topMenuItems[i].c_str(),"");
-	}
-	//Set the user pointers (just experimenting for now)
-	set_item_userptr(top_items[0],(void*)triggerSettingMenu);
-	set_item_userptr(top_items[2],(void*)triggerSequenceMenu);
-	set_item_userptr(top_items[topMenuItems.size()-1],(void*)triggerShutdown); //Final menu item, corresponding to exit
-
-
-	MENU *top_menu;
+	//Associate menu to menuWin, should probably create the menu after the windows
 	top_menu = new_menu((ITEM **)top_items);
 	set_menu_win(top_menu,menuWin);
 	set_menu_sub(top_menu,derwin(menuWin,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
 	set_menu_mark(top_menu,"");
 	post_menu(top_menu);
 
+	
+	seq_menu = new_menu((ITEM **)sequence_items);
+	set_menu_win(seq_menu,contextWin);
+	set_menu_sub(seq_menu,derwin(contextWin,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
+	set_menu_mark(seq_menu,"");
+
+	empty_menu = new_menu((ITEM **)empty_items);
+	set_menu_win(empty_menu,contextWin);
+	set_menu_sub(empty_menu,derwin(contextWin,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
+	set_menu_mark(empty_menu,"");
+	
 	wrefresh(menuWin);
 	wrefresh(contextWin);
 	//Dummy data:
@@ -161,66 +231,99 @@ int main(int argc, char * argv[]){
 	//Populate warnings
 	mvwaddstr(warnWin,1,1,"Camera not in Manual mode! SD card nearing capacity! Battery low!");
 	wrefresh(warnWin);
-//
-//
+
+
 	refresh();
-//
+
 	//Spin up ROS node (need to determine exactly where is best for this, just trying to get something on screen for now)
 	rclcpp::init(argc,argv);
 	rclcpp::Node::SharedPtr nodeHandle = std::make_shared<SimpleControlInterface>(feedWin);
 	rclcpp::executors::SingleThreadedExecutor executor;
 	executor.add_node(nodeHandle);
+	WINDOW* focusedWindow = menuWin;
+	MENU *focusedMenu = top_menu;
+	
+	//Add function pointers to context menu
+	//Associate sub menus to menu win also, but only post setting menu
+	set_item_userptr(setting_items[0],requestExposure);
+	set_item_userptr(setting_items[1],requestIso);
+	set_item_userptr(setting_items[2],requestAperture);
 
 
-	int c;
-	bool exitFlag = false; //Signal to exit loop
+
+	setting_menu = new_menu((ITEM **)setting_items);
+	set_menu_win(setting_menu,contextWin);
+	set_menu_sub(setting_menu,derwin(contextWin,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
+	set_menu_mark(setting_menu,"");
+	post_menu(setting_menu);
+
+
 	while( exitFlag == false)
 	{
 		executor.spin_some(); //Check event topic feed. Haven't fully thought through what spin function to use. There is a chance if the camera node is sending too many topics the user wont get control (unlikely to happen, but still not ideal). Ideally this would have its own thread
-		c = wgetch(menuWin);
-		switch(c)
+		if(focusedWindow == menuWin)
 		{
-			case 'j':
-				menu_driver(top_menu, REQ_DOWN_ITEM);
-				break;
-			case 'k':
-				menu_driver(top_menu, REQ_UP_ITEM);
-				break;
-			case 'e': //Enter key (i think) //TODO: The function argument types should be uniform so this if else statement is unneccesary
-				if (item_index(current_item(top_menu)) == 0 || item_index(current_item(top_menu)) == 2)
-				{
-					ITEM *cur;
-					void (*p)(WINDOW *);
-					cur = current_item(top_menu);
-					p = reinterpret_cast<void (*)(WINDOW*)>(item_userptr(cur));
-					p(contextWin); 
-				}
-				else if(item_index(current_item(top_menu)) == 5) //TODO: Would be more robust to somehow compare this to the actual item name, incase more items are added in future
-				{
-					//Doing this buisness with the function pointer is more complicated
-					//that just updating the flag. However I want to practice with the
-					//user pointer and function pointers because I will need to use them
-					//for the rest of the menus. Plus there will be more shutdown stuff
-					//to do once I have the second thread up and running so it is somewhat
-					//justified... somewhat
-					ITEM *cur;
-					void (*p)(bool *);
-					cur = current_item(top_menu);
-					p = reinterpret_cast<void (*)(bool*)>(item_userptr(cur));
-					p(&exitFlag); 
-					
-				}
-				break;
+			c = wgetch(focusedWindow);
+			switch(c)
+			{
+				case 'j':
+					unpost_menu(*contextMenus[item_index(current_item(top_menu))]);
+					menu_driver(focusedMenu, REQ_DOWN_ITEM);
+					post_menu(*contextMenus[item_index(current_item(top_menu))]);
+					break;
+				case 'k':
+					unpost_menu(*contextMenus[item_index(current_item(top_menu))]);
+					menu_driver(focusedMenu, REQ_UP_ITEM);
+					post_menu(*contextMenus[item_index(current_item(top_menu))]);
+					break;
+				case 'e': //Enter key (i think)
+					if (item_index(current_item(top_menu)) == 0 || item_index(current_item(top_menu)) == 2)
+					{
+						focusedWindow = contextWin;
+						focusedMenu = *contextMenus[item_index(current_item(top_menu))];
+					}
+					else if(item_index(current_item(top_menu)) == 5)
+					{
+						exitFlag = true;
+					}
+					break;
+			}
+			wrefresh(menuWin);
+			wrefresh(contextWin);
 		}
-		wrefresh(menuWin);
-	}
+		if(focusedWindow == contextWin)
+		{
+			c = wgetch(focusedWindow);
+			switch(c)
+			{
+				case 'j':
+					menu_driver(focusedMenu, REQ_DOWN_ITEM);
+					break;
+				case 'k':
+					menu_driver(focusedMenu, REQ_UP_ITEM);
+					break;
+				case 'b': //backspace key (i think)
+					focusedWindow = menuWin;
+					focusedMenu = top_menu;
+					break;
+				case 'e':
+					ITEM *cur;
+					void (*p)(int, SimpleControlInterface*);
+					p = item_userptr(cur);
+					p(10,&nodeHandle);
 
+			}
+			wrefresh(menuWin);
+			wrefresh(contextWin);
+		}					       
+		
+	}
 	
 	//Clean up
 	rclcpp::shutdown();
 	unpost_menu(top_menu);
 	free_menu(top_menu);
-	for(int i = 0; i < topMenuItems.size(); i++)
+	for(int i = 0; i < n_top_choices; ++i)
 	{
 		free_item(top_items[i]);
 	}
@@ -262,115 +365,4 @@ std::string generateStatusString(int batt, double expo, int iso, double focalLen
 	return std::to_string(expo) + "s | ISO" + std::to_string(iso) + " | f/" + std::to_string(focalLength) + "	| " + std::to_string(batt) + "%";
 }
 
-//Define top level menu functions
-void triggerSettingMenu(WINDOW* window){
-	//Set up menu
-	std::vector<std::string>menuItems = {
-	"Exposure",
-	"ISO",
-	"Aperture"
-	};
 
-	ITEM **items;
-	items = (ITEM **)calloc(menuItems.size()+1, sizeof(ITEM *));
-	for(int i = 0; i < menuItems.size(); i++)
-	{
-		items[i] = new_item(menuItems[i].c_str(),"");
-	}
-	
-	MENU *menu;
-	menu = new_menu((ITEM **)items);
-	
-	set_menu_win(menu,window);
-	set_menu_sub(menu,derwin(window,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
-	set_menu_mark(menu,"");
-	post_menu(menu);
-	wrefresh(window);
-	
-	int c;
-	bool exitFlag = false; //Signal to exit loop
-	while( exitFlag == false)
-	{
-
-		//executor.spin_some(); //definitely needs it own thread
-		c = wgetch(window);
-		switch(c)
-		{
-			case 'j':
-				menu_driver(menu, REQ_DOWN_ITEM);
-				break;
-			case 'k':
-				menu_driver(menu, REQ_UP_ITEM);
-				break;
-			case 'b':
-				exitFlag = true;
-				break;
-		}
-		wrefresh(window);
-	}
-	unpost_menu(menu);
-	free_menu(menu);
-	for(int i = 0; i < menuItems.size(); i++)
-	{
-		free_item(items[i]);
-	}
-	
-		
-}
-void triggerSequenceMenu(WINDOW* window){
-	//Set up menu
-	std::vector<std::string>menuItems = {
-	"Length",
-	"Name",
-	"StartSequence"
-	};
-
-	ITEM **items;
-	items = (ITEM **)calloc(menuItems.size()+1, sizeof(ITEM *));
-	for(int i = 0; i < menuItems.size(); i++)
-	{
-		items[i] = new_item(menuItems[i].c_str(),"");
-	}
-	
-	MENU *menu;
-	menu = new_menu((ITEM **)items);
-	
-	set_menu_win(menu,window);
-	set_menu_sub(menu,derwin(window,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
-	set_menu_mark(menu,"");
-	post_menu(menu);
-	wrefresh(window);
-	
-	int c;
-	bool exitFlag = false; //Signal to exit loop
-	while( exitFlag == false)
-	{
-
-		//executor.spin_some(); //definitely needs it own thread
-		c = wgetch(window);
-		switch(c)
-		{
-			case 'j':
-				menu_driver(menu, REQ_DOWN_ITEM);
-				break;
-			case 'k':
-				menu_driver(menu, REQ_UP_ITEM);
-				break;
-			case 'b':
-				exitFlag = true;
-				break;
-		}
-		wrefresh(window);
-	}
-	unpost_menu(menu);
-	free_menu(menu);
-	for(int i = 0; i < menuItems.size(); i++)
-	{
-		free_item(items[i]);
-	}
-	
-		
-}
-void triggerShutdown(bool* exitflag){
-	*exitflag = true;
-}
