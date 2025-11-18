@@ -23,19 +23,7 @@
 //Mutexes
 std::mutex topicBufferMutex;
 std::mutex valueBufferMutex;
-std::mutex exitMutex;
-std::mutex commandQueueMutex;
 
-//UI Commands
-enum UIcommand {
-	//Just getting started, absolutely not an exhaustive list
-	INIT_NCURSES,
-	UPDATE_FEED,
-	UPDATE_STATUS_BANNER,
-	UPDATE_WARNINGS,
-	RESIZE_UI,
-	NONE
-};
 
 //FIXME: Some nasty globals. Declared here so that all the top menu item functions can see
 //them. Still figuring out exactly how to structure the arguments of the top level menu
@@ -44,6 +32,17 @@ enum UIcommand {
 int bannerHeight = 3; //The height of the conn, status and warn windows
 int connWidth = 15;
 int feedWidth = 60;
+
+
+//Declare some helper functions for ncurses (copied from ncurses tutorials, might end up removing these in future refactoring)
+WINDOW *create_newwin(int height, int width, int starty, int startx);
+void destroy_win(WINDOW *local_win);
+std::string generateStatusString(int batt, std::string expo, int iso, std::string focalLength);
+//Declare functions that correspond to the top level menu items
+void triggerSettingMenu(WINDOW* window);
+void triggerSequenceMenu(WINDOW* window);
+void triggerShutdown(bool* exitflag);
+
 
 //Declare struct that will buffer setting values from camera
 struct SettingBuffer{
@@ -57,29 +56,12 @@ struct SettingBuffer{
 	std::string aper;
 };
 
-
-
-//Declare some helper functions for ncurses (copied from ncurses tutorials, might end up removing these in future refactoring)
-WINDOW *create_newwin(int height, int width, int starty, int startx);
-void destroy_win(WINDOW *local_win);
-std::string generateStatusString(int batt, std::string expo, int iso, std::string focalLength);
-//Declare functions that correspond to the top level menu items
-void triggerSettingMenu(WINDOW* window);
-void triggerSequenceMenu(WINDOW* window);
-void triggerShutdown(bool* exitflag);
-
-
-
-
-
-
 //Declare ros node
 class SimpleControlInterface : public rclcpp::Node
 {
 	public:
-		SimpleControlInterface(std::shared_ptr<std::vector<UIcommand>> uiCommQueue)
-			: Node("simple_control"),
-			  uiCommandQueue(uiCommQueue)
+		SimpleControlInterface()
+			: Node("simple_control")
 		{
 			feedBufferMax = 100; //TODO: Specify this via a ROS2 parameter
 			settingBuffer.battery = 0; //-1 signifies an error (like the camera isnt connected to the camera node)
@@ -138,49 +120,49 @@ class SimpleControlInterface : public rclcpp::Node
 			//TODO: Also it would be nice if period of the timer was a ros parameter
 			timer_ = this->create_wall_timer(std::chrono::milliseconds(10000), std::bind(&SimpleControlInterface::timerCallback, this),backgroundFetchCallbackGroup);
 		}
-		void sendPhotoRequest()
-		{
+	void sendPhotoRequest()
+	{
 
-		}
-		void sendExpRequest(int exp)
-		{
+	}
+	void sendExpRequest(int exp)
+	{
 
-		}
-		void sendIsoRequest(int iso)
-		{
+	}
+	void sendIsoRequest(int iso)
+	{
 
-		}
-		void sendAperRequest(int aper)
-		{
+	}
+	void sendAperRequest(int aper)
+	{
 
-		}
-		std::vector<std::string> getFeedBuffer()
-		{
-			//This might end up being problematic. If the feedbuffer is
-			//large then copying it might introduce slowdowns. It may be
-			//better to pass by reference but I thought it would be neater
-			//to do it this way because then I could contain all the Mutex
-			//code in the ROS node and abstract it away from the calling
-			//thread. However it might not be worth the performance hit so
-			//check back later
+	}
+	std::vector<std::string> getFeedBuffer()
+	{
+		//This might end up being problematic. If the feedbuffer is
+		//large then copying it might introduce slowdowns. It may be
+		//better to pass by reference but I thought it would be neater
+		//to do it this way because then I could contain all the Mutex
+		//code in the ROS node and abstract it away from the calling
+		//thread. However it might not be worth the performance hit so
+		//check back later
 
-			std::vector<std::string> buffer;
-			topicBufferMutex.lock();
-			buffer = feedBuffer;
-			topicBufferMutex.unlock();
-			return buffer;
-		}
-		SettingBuffer getSettingBuffer()
-		{
-			//Same issue as above, although It shouldnt be nearly as much of
-			//an issue since the buffer is much smaller here
+		std::vector<std::string> buffer;
+		topicBufferMutex.lock();
+		buffer = feedBuffer;
+		topicBufferMutex.unlock();
+		return buffer;
+	}
+	SettingBuffer getSettingBuffer()
+	{
+		//Same issue as above, although It shouldnt be nearly as much of
+		//an issue since the buffer is much smaller here
 
-			SettingBuffer buffer;
-			valueBufferMutex.lock();
-			buffer = settingBuffer;
-			valueBufferMutex.unlock();
-			return buffer;
-		}
+		SettingBuffer buffer;
+		valueBufferMutex.lock();
+		buffer = settingBuffer;
+		valueBufferMutex.unlock();
+		return buffer;
+	}
 	private:
 		rclcpp::Subscription<interfaces::msg::Event>::SharedPtr cameraEventSubscriber;
 		rclcpp::TimerBase::SharedPtr timer_;
@@ -201,10 +183,6 @@ class SimpleControlInterface : public rclcpp::Node
 			}
 			topicBufferMutex.unlock();
 
-			//Tell the ui to update the buffer
-			commandQueueMutex.lock();
-			uiCommandQueue->push_back(UPDATE_FEED);
-			commandQueueMutex.unlock();
 		}
 		void timerCallback()
 		{
@@ -319,58 +297,222 @@ class SimpleControlInterface : public rclcpp::Node
 			valueBufferMutex.unlock();
 		};
 
-		std::shared_ptr<std::vector<UIcommand>> uiCommandQueue;
 		std::vector<std::string> feedBuffer;
 		int feedBufferMax;
 		SettingBuffer settingBuffer;
 };
 
 
-//Declare struct that will contain everything ui thread needs
-struct UiData{
-    std::shared_ptr<bool> exitFlag;
-		std::shared_ptr<std::vector<UIcommand>> commandQueue;
-		std::shared_ptr<SimpleControlInterface> node;
-};
-void uiThreadFunction(UiData data);
+
 
 
 int main(int argc, char * argv[]){
 
 	//Spin up ROS node (need to determine exactly where is best for this, just trying to get something on screen for now)
 	rclcpp::init(argc,argv);
-	std::shared_ptr<std::vector<UIcommand>> uiCommandQueue = std::make_shared<std::vector<UIcommand>>();
-	std::shared_ptr<SimpleControlInterface> nodeHandle = std::make_shared<SimpleControlInterface>(uiCommandQueue);
+	auto nodeHandle = std::make_shared<SimpleControlInterface>();
 	
 	rclcpp::executors::MultiThreadedExecutor executor;
 	executor.add_node(nodeHandle);
 	std::thread nodeThread([&executor](){executor.spin();}); //TODO: Move this lambda into its own (alread declared function). Ensure proper shutdown handling occurs
-  
 	
-	std::shared_ptr<bool> exitFlag = std::make_shared<bool>(false);
+	initscr();	//Start curses mode
+	cbreak();
+	noecho();
+	//nodelay(stdscr,TRUE); //Should make getch() non blocking
+	keypad(stdscr,TRUE);
 
-	UiData uiData;
-	uiData.exitFlag = exitFlag;
-	uiData.commandQueue = uiCommandQueue;
-	uiData.node = nodeHandle;
-	std::thread uiThread(uiThreadFunction,uiData);
+	//Declare windows
+	WINDOW* statusWin;
+	WINDOW* feedWin;
+	WINDOW* menuWin;
+	WINDOW* warnWin;
+	WINDOW* connWin;
+	WINDOW* contextWin;
+	refresh();
+
+	statusWin = create_newwin(bannerHeight,COLS,LINES-bannerHeight,0);
+	connWin = create_newwin(bannerHeight,connWidth,0,COLS-connWidth);
+	warnWin   = create_newwin(bannerHeight,COLS-connWidth,0,0);
+	menuWin   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,0);
+	contextWin   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,(COLS - feedWidth-1)/2);
+	feedWin   = create_newwin(LINES-(2*bannerHeight),COLS-feedWidth-1,bannerHeight,(COLS-feedWidth));
 	
-	while( *exitFlag == false)
+	nodelay(menuWin,TRUE);
+
+	//Set up top level menu
+	std::vector<std::string>topMenuItems = {
+	"Change Setting",
+	"Request Sequence",
+	"Download Photos",
+	"Shutdown Node",
+	"Exit"
+	};
+
+	ITEM **top_items;
+	top_items = (ITEM **)calloc(topMenuItems.size()+1, sizeof(ITEM *));
+	for(int i = 0; i < topMenuItems.size(); i++)
 	{
-		//Just a placeholder main function that waits for a keypress and initiates shutdown.
-		//Here to make sure all three threads are working and shutdown properly.
-		std::string s;
-		std::cin >> s;
-		std::cout << "Shutting down main thread..." << std::endl;
-		exitMutex.lock();
-		*exitFlag = true;
-		exitMutex.unlock();
+		top_items[i] = new_item(topMenuItems[i].c_str(),"");
+	}
+	//Set the user pointers (just experimenting for now)
+	set_item_userptr(top_items[0],(void*)triggerSettingMenu);
+	set_item_userptr(top_items[2],(void*)triggerSequenceMenu);
+	set_item_userptr(top_items[topMenuItems.size()-1],(void*)triggerShutdown); //Final menu item, corresponding to exit
+
+
+	MENU *top_menu;
+	top_menu = new_menu((ITEM **)top_items);
+	set_menu_win(top_menu,menuWin);
+	set_menu_sub(top_menu,derwin(menuWin,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
+	set_menu_mark(top_menu,"");
+	post_menu(top_menu);
+
+	wrefresh(menuWin);
+	wrefresh(contextWin);
+	
+	SettingBuffer cameraValues = nodeHandle->getSettingBuffer();
+	std::vector<std::string> eventBuffer;
+	std::vector<std::string> eventBufferOld;
+
+	std::string cameraMode = "Aperture";
+	std::string model = "Nikon D3500";
+	//Populate status bar
+	mvwaddstr(statusWin,1,1,generateStatusString(cameraValues.battery,cameraValues.expo,cameraValues.iso,cameraValues.aper).c_str());
+	wrefresh(statusWin);
+	//Populate camera model
+	mvwaddstr(connWin,1,1,model.c_str());
+	wrefresh(connWin);
+	//Populate warnings
+	mvwaddstr(warnWin,1,1,"Camera not in Manual mode! SD card nearing capacity! Battery low!");
+	wrefresh(warnWin);
+
+	
+	MENU *feed_menu; //holds the camera event feed menu. The menu itself gets created and destroyed on each loop iteration
+	//eventBuffer = nodeHandle->getFeedBuffer();
+	eventBuffer.push_back(std::to_string(1));
+	ITEM **feed_items;
+	feed_items = (ITEM **)calloc(eventBuffer.size()+1, sizeof(ITEM *));
+	for(int i = 0; i < eventBuffer.size(); i++)
+	{
+		feed_items[i] = new_item(eventBuffer[i].c_str(),"");
+	}
+	feed_menu = new_menu((ITEM **)feed_items);
+	set_menu_win(feed_menu,feedWin);
+	set_menu_sub(feed_menu,derwin(feedWin,LINES-(2*bannerHeight)-4,(COLS-feedWidth-2)-2,1,1));
+	set_menu_mark(feed_menu,"");
+	post_menu(feed_menu);
+	wrefresh(feedWin);
+	
+	refresh();
+//
+
+
+
+	int c;
+	bool exitFlag = false; //Signal to exit loop
+
+
+	while( exitFlag == false)
+	{
+		cameraValues = nodeHandle->getSettingBuffer();
+		mvwaddstr(statusWin,1,1,generateStatusString(cameraValues.battery,cameraValues.expo,cameraValues.iso,cameraValues.aper).c_str());
+		wrefresh(statusWin);//FIXME: Bug here, when writing the new string, if it is shorter than the old one the old information is not completely cleared
+
+		
+		//Regenerate event feed menu. Probably worth moving this into its own function at some point
+		//Even putting in check to see whether the menu even needs reposting, this still seems slow.
+		//I think this issue will dissapear though when the gui thread gets implemented. Then the
+		//recreating the menu can be driven by the ros topic callback only when required
+		eventBufferOld = eventBuffer;
+		eventBuffer = nodeHandle->getFeedBuffer();
+		if(eventBuffer != eventBufferOld) //This could be computationally costly. Maybe just compare the sizes and add some mechanism to check for overflows
+		{
+			//Better yet, eventually I want to have timestamps added to the entries. In which case just the timestamp of the last entry can be compared
+			unpost_menu(feed_menu);
+			free_menu(feed_menu);
+			for(int i = 0; i < eventBufferOld.size(); i++)
+			{
+				free_item(feed_items[i]);
+			}
+
+			feed_items = (ITEM **)calloc(eventBuffer.size()+1, sizeof(ITEM *));
+			for(int i = 0; i < eventBuffer.size(); i++)
+			{
+				feed_items[i] = new_item(eventBuffer[i].c_str(),"");
+			}
+			feed_menu = new_menu((ITEM **)feed_items);
+			set_menu_win(feed_menu,feedWin);
+			set_menu_sub(feed_menu,derwin(feedWin,LINES-(2*bannerHeight)-4,(COLS-feedWidth-2)-2,1,1));
+			set_menu_mark(feed_menu,"");
+			post_menu(feed_menu);
+			
+			menu_driver(feed_menu,REQ_LAST_ITEM);
+			wrefresh(feedWin);
+			refresh();
+		}
+
+		c = wgetch(menuWin);
+		switch(c)
+		{
+			case 'j':
+				menu_driver(top_menu, REQ_DOWN_ITEM);
+				break;
+			case 'k':
+				menu_driver(top_menu, REQ_UP_ITEM);
+				break;
+			case 'e': //Enter key (i think) //TODO: The function argument types should be uniform so this if else statement is unneccesary
+				if (item_index(current_item(top_menu)) == 0 || item_index(current_item(top_menu)) == 2)
+				{
+					//FIXME: Node timer sometimes breaks and stops asking the camera for settings values. At first I thought it
+					//happened when entering a submenu but not it seems random.s
+					ITEM *cur;
+					void (*p)(WINDOW *);
+					cur = current_item(top_menu);
+					p = reinterpret_cast<void (*)(WINDOW*)>(item_userptr(cur));
+					p(contextWin); 
+				}
+				else if(item_index(current_item(top_menu)) == 1) 
+				{
+
+
+				}
+				else if(item_index(current_item(top_menu)) == 4) //TODO: Would be more robust to somehow compare this to the actual item name, incase more items are added in future
+				{
+					//Doing this buisness with the function pointer is more complicated
+					//that just updating the flag. However I want to practice with the
+					//user pointer and function pointers because I will need to use them
+					//for the rest of the menus. Plus there will be more shutdown stuff
+					//to do once I have the second thread up and running so it is somewhat
+					//justified... somewhat
+					ITEM *cur;
+					void (*p)(bool *);
+					cur = current_item(top_menu);
+					p = reinterpret_cast<void (*)(bool*)>(item_userptr(cur));
+					p(&exitFlag); 
+					
+				}
+				break;
+		}
+		wrefresh(menuWin);
 	}
 
 	
 	//Clean up
 	rclcpp::shutdown();
-	uiThread.join();
+	unpost_menu(top_menu);
+	free_menu(top_menu);
+	for(int i = 0; i < topMenuItems.size(); i++)
+	{
+		free_item(top_items[i]);
+	}
+	destroy_win(statusWin);
+	destroy_win(connWin);
+	destroy_win(warnWin);
+	destroy_win(menuWin);
+	destroy_win(feedWin);
+	endwin();
+
 	nodeThread.join();
 
 	return 0;
@@ -552,185 +694,5 @@ void backgroundThreadFunction(SimpleControlInterface node)
 {
 	//Spin node to check for new subscription messages
 	//TODO: Move the lambda in the main function to here
-	//TODO: Rename function to nodeThreadFunction when you do
 	//Check 
-}
-
-
-void uiThreadFunction(UiData data)
-{
-  //TODO: Fill out barebones template along the lines of notebook. Just get the exit flag working and shutdown working first
-  //and fix ros node shutdown too while you're at it
-  bool localExitFlag = false;
-	enum UIcommand currentCommand;
-	std::vector<std::string> feedbuffer;
-	
-
-	//Initialise ncurses here. Debating whether this should be the first command in the queue,
-	//depends on if there is ever a situation where you would not want to draw the ui at startup.
-	initscr();	//Start curses mode
-	cbreak();
-	noecho();
-	//nodelay(stdscr,TRUE); //Should make getch() non blocking
-	keypad(stdscr,TRUE);
-
-	//Declare windows
-	WINDOW* statusWin;
-	WINDOW* feedWin;
-	WINDOW* menuWin;
-	WINDOW* warnWin;
-	WINDOW* connWin;
-	WINDOW* contextWin;
-	refresh();
-
-	statusWin = create_newwin(bannerHeight,COLS,LINES-bannerHeight,0);
-	connWin = create_newwin(bannerHeight,connWidth,0,COLS-connWidth);
-	warnWin   = create_newwin(bannerHeight,COLS-connWidth,0,0);
-	menuWin   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,0);
-	contextWin   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,(COLS - feedWidth-1)/2);
-	feedWin   = create_newwin(LINES-(2*bannerHeight),COLS-feedWidth-1,bannerHeight,(COLS-feedWidth));
-	
-	nodelay(menuWin,TRUE);
-
-	//Set up top level menu
-	std::vector<std::string>topMenuItems = {
-	"Change Setting",
-	"Request Sequence",
-	"Download Photos",
-	"Shutdown Node",
-	"Exit"
-	};
-
-	ITEM **top_items;
-	top_items = (ITEM **)calloc(topMenuItems.size()+1, sizeof(ITEM *));
-	for(int i = 0; i < topMenuItems.size(); i++)
-	{
-		top_items[i] = new_item(topMenuItems[i].c_str(),"");
-	}
-	//Set the user pointers (just experimenting for now)
-	set_item_userptr(top_items[0],(void*)triggerSettingMenu);
-	set_item_userptr(top_items[2],(void*)triggerSequenceMenu);
-	set_item_userptr(top_items[topMenuItems.size()-1],(void*)triggerShutdown); //Final menu item, corresponding to exit
-
-
-	MENU *top_menu;
-	top_menu = new_menu((ITEM **)top_items);
-	set_menu_win(top_menu,menuWin);
-	set_menu_sub(top_menu,derwin(menuWin,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
-	set_menu_mark(top_menu,"");
-	post_menu(top_menu);
-
-	wrefresh(menuWin);
-	wrefresh(contextWin);
-	
-
-	std::string cameraMode = "Aperture";
-	std::string model = "Nikon D3500";
-	//Populate status bar //TODO: Implement: Following two lines copied from previous iteration. I have not given the node thread access to the setting value buffer yet (or maybe just access to the node would be enough if the getter functions were wrapped with mutexes)
-	//mvwaddstr(statusWin,1,1,generateStatusString(cameraValues.battery,cameraValues.expo,cameraValues.iso,cameraValues.aper).c_str());
-	//wrefresh(statusWin);
-	//Populate camera model
-	mvwaddstr(connWin,1,1,model.c_str());
-	wrefresh(connWin);
-	//Populate warnings
-	mvwaddstr(warnWin,1,1,"Camera not in Manual mode! SD card nearing capacity! Battery low!");
-	wrefresh(warnWin);
-
-	//TODO: refactor the following into a function, which will be useful for the switch statement in the main loop of the ui thread
-	MENU *feed_menu; //holds the camera event feed menu. The menu itself gets created and destroyed on each loop iteration
-	feedbuffer = data.node->getFeedBuffer();
-	ITEM **feed_items;
-	feed_items = (ITEM **)calloc(feedbuffer.size()+1, sizeof(ITEM *));
-	for(int i = 0; i < feedbuffer.size(); i++)
-	{
-		feed_items[i] = new_item(feedbuffer[i].c_str(),"");
-	}
-	feed_menu = new_menu((ITEM **)feed_items);
-	set_menu_win(feed_menu,feedWin);
-	set_menu_sub(feed_menu,derwin(feedWin,LINES-(2*bannerHeight)-4,(COLS-feedWidth-2)-2,1,1));
-	set_menu_mark(feed_menu,"");
-	post_menu(feed_menu);
-	wrefresh(feedWin);
-	
-	refresh();
-
-  while (localExitFlag == false)
-  {
-		exitMutex.lock();
-		localExitFlag = *(data.exitFlag);
-		exitMutex.unlock();
-
-		//Extract command from queue
-		commandQueueMutex.lock();
-		if((data.commandQueue)->empty() == 1)
-		{
-			commandQueueMutex.unlock();
-			currentCommand = NONE;
-		}
-		else
-		{
-			currentCommand = (*(data.commandQueue))[0];
-			*(data.commandQueue)->erase(data.commandQueue->begin());
-			commandQueueMutex.unlock();
-		}
-
-		switch(currentCommand)
-		{
-			case NONE :
-				break;
-			case UPDATE_FEED :
-				//TODO: This (along with all others) will eventually be refactored into a function
-				// when that happens Need to make sure the buffer is not copied every time
-				
-				unpost_menu(feed_menu);
-				free_menu(feed_menu);
-				for(int i = 0; i < feedbuffer.size(); i++)
-				{
-					free_item(feed_items[i]);
-				}
-				
-				feedbuffer = data.node->getFeedBuffer();
-				
-				feed_items = (ITEM **)calloc(feedbuffer.size()+1, sizeof(ITEM *));
-				for(int i = 0; i < feedbuffer.size(); i++)
-				{
-					feed_items[i] = new_item(feedbuffer[i].c_str(),"");
-				}
-				feed_menu = new_menu((ITEM **)feed_items);
-				set_menu_win(feed_menu,feedWin);
-				set_menu_sub(feed_menu,derwin(feedWin,LINES-(2*bannerHeight)-4,(COLS-feedWidth-2)-2,1,1));
-				set_menu_mark(feed_menu,"");
-				post_menu(feed_menu);
-
-				menu_driver(feed_menu,REQ_LAST_ITEM);
-				wrefresh(feedWin);
-				refresh();
-				
-			default:
-				//Eventually need to throw some sort of error here once I have implemented all the commands
-				//and an error system
-				break;
-		}
-
-  }
-
-  //Shutdown ncurses
-  	unpost_menu(feed_menu);
-	free_menu(feed_menu);
-	for(int i = 0; i < feedbuffer.size(); i++)
-	{
-		free_item(feed_items[i]);
-	}
-	unpost_menu(top_menu);
-	free_menu(top_menu);
-	for(int i = 0; i < topMenuItems.size(); i++)
-	{
-		free_item(top_items[i]);
-	}
-	destroy_win(statusWin);
-	destroy_win(connWin);
-	destroy_win(warnWin);
-	destroy_win(menuWin);
-	destroy_win(feedWin);
-	endwin();
 }
