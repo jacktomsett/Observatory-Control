@@ -556,6 +556,33 @@ void backgroundThreadFunction(SimpleControlInterface node)
 	//Check 
 }
 
+void updateFeedWindow(std::shared_ptr<std::vector<std::string>> buffer, std::shared_ptr<SimpleControlInterface> node, std::shared_ptr<WINDOW*> win, std::shared_ptr<MENU*> menu, std::shared_ptr<ITEM **> items)
+{
+	unpost_menu(*menu);
+	free_menu(*menu);
+	for(int i = 0; i < buffer->size(); i++)
+	{
+		free_item((*items)[i]);
+	}
+				
+	*buffer = node->getFeedBuffer();
+				
+	*items = (ITEM **)calloc(buffer->size()+1, sizeof(ITEM *));
+	for(int i = 0; i < buffer->size(); i++)
+	{
+		(*items)[i] = new_item((*(buffer))[i].c_str(),"");
+	}
+	*menu = new_menu((ITEM **)(*items));
+	set_menu_win(*menu,*win);
+	set_menu_sub(*menu,derwin(*win,LINES-(2*bannerHeight)-4,(COLS-feedWidth-2)-2,1,1));
+	set_menu_mark(*menu,"");
+	post_menu(*menu);
+
+	menu_driver(*menu,REQ_LAST_ITEM);
+	wrefresh(*win);
+	refresh();
+	
+}
 
 void uiThreadFunction(UiData data)
 {
@@ -564,6 +591,7 @@ void uiThreadFunction(UiData data)
   bool localExitFlag = false;
 	enum UIcommand currentCommand;
 	std::vector<std::string> feedbuffer;
+	std::shared_ptr<std::vector<std::string>> feedbufferptr = std::make_shared<std::vector<std::string>>(feedbuffer);
 	
 
 	//Initialise ncurses here. Debating whether this should be the first command in the queue,
@@ -577,6 +605,7 @@ void uiThreadFunction(UiData data)
 	//Declare windows
 	WINDOW* statusWin;
 	WINDOW* feedWin;
+	std::shared_ptr<WINDOW*> feedWinPtr = std::make_shared<WINDOW*>(feedWin);
 	WINDOW* menuWin;
 	WINDOW* warnWin;
 	WINDOW* connWin;
@@ -588,7 +617,7 @@ void uiThreadFunction(UiData data)
 	warnWin   = create_newwin(bannerHeight,COLS-connWidth,0,0);
 	menuWin   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,0);
 	contextWin   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,(COLS - feedWidth-1)/2);
-	feedWin   = create_newwin(LINES-(2*bannerHeight),COLS-feedWidth-1,bannerHeight,(COLS-feedWidth));
+	*feedWinPtr   = create_newwin(LINES-(2*bannerHeight),COLS-feedWidth-1,bannerHeight,(COLS-feedWidth));
 	
 	nodelay(menuWin,TRUE);
 
@@ -636,21 +665,27 @@ void uiThreadFunction(UiData data)
 	mvwaddstr(warnWin,1,1,"Camera not in Manual mode! SD card nearing capacity! Battery low!");
 	wrefresh(warnWin);
 
-	//TODO: refactor the following into a function, which will be useful for the switch statement in the main loop of the ui thread
+	//TODO: This, and the the function to update the feed menu only worked when creating a pointer to every ncurses variable, and acting upon those
+	//pointers here. When I acted on the raw ncurses objects here it didnt work and made a whole separate window for the menu created in the function
+	//as opposed to the window here. This suggests that when invoking the make_shared function it is creating a new underlying variable. If this is indeed
+	//the case then the code can probably be cleaned up here by not bothering to create the raw ncurses variables at all and just instantiate the smart pointers
+	//and always act upon them. Read the documentation on the make_shared (and similar) functions first to properly understand them.
 	MENU *feed_menu; //holds the camera event feed menu. The menu itself gets created and destroyed on each loop iteration
+	std::shared_ptr<MENU*> feed_menu_ptr = std::make_shared<MENU*>(feed_menu);
 	feedbuffer = data.node->getFeedBuffer();
 	ITEM **feed_items;
-	feed_items = (ITEM **)calloc(feedbuffer.size()+1, sizeof(ITEM *));
+	std::shared_ptr<ITEM**> feed_items_ptr = std::make_shared<ITEM**>(feed_items);
+	*feed_items_ptr = (ITEM **)calloc(feedbuffer.size()+1, sizeof(ITEM *));
 	for(int i = 0; i < feedbuffer.size(); i++)
 	{
-		feed_items[i] = new_item(feedbuffer[i].c_str(),"");
+		(*feed_items_ptr)[i] = new_item(feedbuffer[i].c_str(),"");
 	}
-	feed_menu = new_menu((ITEM **)feed_items);
-	set_menu_win(feed_menu,feedWin);
-	set_menu_sub(feed_menu,derwin(feedWin,LINES-(2*bannerHeight)-4,(COLS-feedWidth-2)-2,1,1));
-	set_menu_mark(feed_menu,"");
-	post_menu(feed_menu);
-	wrefresh(feedWin);
+	*feed_menu_ptr = new_menu((ITEM **)feed_items);
+	set_menu_win(*feed_menu_ptr,*feedWinPtr);
+	set_menu_sub(*feed_menu_ptr,derwin(*feedWinPtr,LINES-(2*bannerHeight)-4,(COLS-feedWidth-2)-2,1,1));
+	set_menu_mark(*feed_menu_ptr,"");
+	post_menu(*feed_menu_ptr);
+	wrefresh(*feedWinPtr);
 	
 	refresh();
 
@@ -679,33 +714,8 @@ void uiThreadFunction(UiData data)
 			case NONE :
 				break;
 			case UPDATE_FEED :
-				//TODO: This (along with all others) will eventually be refactored into a function
-				// when that happens Need to make sure the buffer is not copied every time
-				
-				unpost_menu(feed_menu);
-				free_menu(feed_menu);
-				for(int i = 0; i < feedbuffer.size(); i++)
-				{
-					free_item(feed_items[i]);
-				}
-				
-				feedbuffer = data.node->getFeedBuffer();
-				
-				feed_items = (ITEM **)calloc(feedbuffer.size()+1, sizeof(ITEM *));
-				for(int i = 0; i < feedbuffer.size(); i++)
-				{
-					feed_items[i] = new_item(feedbuffer[i].c_str(),"");
-				}
-				feed_menu = new_menu((ITEM **)feed_items);
-				set_menu_win(feed_menu,feedWin);
-				set_menu_sub(feed_menu,derwin(feedWin,LINES-(2*bannerHeight)-4,(COLS-feedWidth-2)-2,1,1));
-				set_menu_mark(feed_menu,"");
-				post_menu(feed_menu);
-
-				menu_driver(feed_menu,REQ_LAST_ITEM);
-				wrefresh(feedWin);
-				refresh();
-				
+				updateFeedWindow(feedbufferptr,data.node,feedWinPtr,feed_menu_ptr,feed_items_ptr);
+				break;
 			default:
 				//Eventually need to throw some sort of error here once I have implemented all the commands
 				//and an error system
