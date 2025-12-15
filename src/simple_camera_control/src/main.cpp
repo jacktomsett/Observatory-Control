@@ -34,6 +34,9 @@ enum UIcommand {
 	UPDATE_STATUS_BANNER,
 	UPDATE_WARNINGS,
 	RESIZE_UI,
+	MENU_UP,
+	MENU_DOWN,
+	MENU_CHOOSE,
 	NONE
 };
 
@@ -136,7 +139,8 @@ class SimpleControlInterface : public rclcpp::Node
 			}			
 			//Init timers //TODO: Need to investigate timers more, like what happens when it is still processing the last callback when the next one arrives
 			//TODO: Also it would be nice if period of the timer was a ros parameter
-			timer_ = this->create_wall_timer(std::chrono::milliseconds(10000), std::bind(&SimpleControlInterface::timerCallback, this),backgroundFetchCallbackGroup);
+			//TODO: Definitely need to add a mechanism to cancel timer if the previous callback is still running
+			timer_ = this->create_wall_timer(std::chrono::milliseconds(8000), std::bind(&SimpleControlInterface::timerCallback, this),backgroundFetchCallbackGroup);
 		}
 		void sendPhotoRequest()
 		{
@@ -201,7 +205,7 @@ class SimpleControlInterface : public rclcpp::Node
 			}
 			topicBufferMutex.unlock();
 
-			//Tell the ui to update the buffer
+			//Tell the ui to update the feed window
 			commandQueueMutex.lock();
 			uiCommandQueue->push_back(UPDATE_FEED);
 			commandQueueMutex.unlock();
@@ -317,6 +321,11 @@ class SimpleControlInterface : public rclcpp::Node
 			settingBuffer.aper = ap;
 
 			valueBufferMutex.unlock();
+
+			//Tell the ui to update the status window
+			commandQueueMutex.lock();
+			uiCommandQueue->push_back(UPDATE_STATUS_BANNER);
+			commandQueueMutex.unlock();
 		};
 
 		std::shared_ptr<std::vector<UIcommand>> uiCommandQueue;
@@ -335,46 +344,7 @@ struct UiData{
 void uiThreadFunction(UiData data);
 
 
-int main(int argc, char * argv[]){
 
-	//Spin up ROS node (need to determine exactly where is best for this, just trying to get something on screen for now)
-	rclcpp::init(argc,argv);
-	std::shared_ptr<std::vector<UIcommand>> uiCommandQueue = std::make_shared<std::vector<UIcommand>>();
-	std::shared_ptr<SimpleControlInterface> nodeHandle = std::make_shared<SimpleControlInterface>(uiCommandQueue);
-	
-	rclcpp::executors::MultiThreadedExecutor executor;
-	executor.add_node(nodeHandle);
-	std::thread nodeThread([&executor](){executor.spin();}); //TODO: Move this lambda into its own (alread declared function). Ensure proper shutdown handling occurs
-  
-	
-	std::shared_ptr<bool> exitFlag = std::make_shared<bool>(false);
-
-	UiData uiData;
-	uiData.exitFlag = exitFlag;
-	uiData.commandQueue = uiCommandQueue;
-	uiData.node = nodeHandle;
-	std::thread uiThread(uiThreadFunction,uiData);
-	
-	while( *exitFlag == false)
-	{
-		//Just a placeholder main function that waits for a keypress and initiates shutdown.
-		//Here to make sure all three threads are working and shutdown properly.
-		std::string s;
-		std::cin >> s;
-		std::cout << "Shutting down main thread..." << std::endl;
-		exitMutex.lock();
-		*exitFlag = true;
-		exitMutex.unlock();
-	}
-
-	
-	//Clean up
-	rclcpp::shutdown();
-	uiThread.join();
-	nodeThread.join();
-
-	return 0;
-}
 
 WINDOW *create_newwin(int height, int width, int starty, int startx){
 	WINDOW *local_win;
@@ -583,43 +553,65 @@ void updateFeedWindow(std::shared_ptr<std::vector<std::string>> buffer, std::sha
 	refresh();
 	
 }
-
-void uiThreadFunction(UiData data)
+void updateStatusWindow(std::shared_ptr<SettingBuffer> buffer, std::shared_ptr<SimpleControlInterface> node, std::shared_ptr<WINDOW*> win)
 {
-  //TODO: Fill out barebones template along the lines of notebook. Just get the exit flag working and shutdown working first
-  //and fix ros node shutdown too while you're at it
-  bool localExitFlag = false;
-	enum UIcommand currentCommand;
-	std::vector<std::string> feedbuffer;
-	std::shared_ptr<std::vector<std::string>> feedbufferptr = std::make_shared<std::vector<std::string>>(feedbuffer);
+	//FIXME: Need to make sure the previous contents of the window are cleared first
+	*buffer = node->getSettingBuffer();
+	mvwaddstr(*win,1,1,generateStatusString((*buffer).battery,(*buffer).expo,(*buffer).iso,(*buffer).aper).c_str());
+	wrefresh(*win);
+}
+
+
+int main(int argc, char * argv[]){
+
+	//Spin up ROS node (need to determine exactly where is best for this, just trying to get something on screen for now)
+	rclcpp::init(argc,argv);
+	std::shared_ptr<std::vector<UIcommand>> uiCommandQueue = std::make_shared<std::vector<UIcommand>>();
+	std::shared_ptr<SimpleControlInterface> nodeHandle = std::make_shared<SimpleControlInterface>(uiCommandQueue);
 	
+	rclcpp::executors::MultiThreadedExecutor executor;
+	executor.add_node(nodeHandle);
+	std::thread nodeThread([&executor](){executor.spin();}); //TODO: Move this lambda into its own (alread declared function). Ensure proper shutdown handling occurs
+  
+	
+	std::shared_ptr<bool> exitFlag = std::make_shared<bool>(false); //FIXME: Now we have gone back to two threads, this doesnt need to be a pointer anymore
+
+
+//////////////////////////////////////////////////////////////////
+  	//TODO: Fill out barebones template along the lines of notebook. Just get the exit flag working and shutdown working first
+  	//and fix ros node shutdown too while you're at it
+	enum UIcommand currentCommand;
+	std::shared_ptr<std::vector<std::string>> feedBufferPtr = std::make_shared<std::vector<std::string>>();
+	std::shared_ptr<SettingBuffer> statusBufferPtr = std::make_shared<SettingBuffer>();
 
 	//Initialise ncurses here. Debating whether this should be the first command in the queue,
 	//depends on if there is ever a situation where you would not want to draw the ui at startup.
 	initscr();	//Start curses mode
 	cbreak();
 	noecho();
-	//nodelay(stdscr,TRUE); //Should make getch() non blocking
+	nodelay(stdscr,TRUE); //Should make getch() non blocking
 	keypad(stdscr,TRUE);
 
 	//Declare windows
-	WINDOW* statusWin;
-	WINDOW* feedWin;
-	std::shared_ptr<WINDOW*> feedWinPtr = std::make_shared<WINDOW*>(feedWin);
-	WINDOW* menuWin;
-	WINDOW* warnWin;
-	WINDOW* connWin;
-	WINDOW* contextWin;
+	std::shared_ptr<WINDOW*> statusWinPtr = std::make_shared<WINDOW*>();
+	std::shared_ptr<WINDOW*> feedWinPtr = std::make_shared<WINDOW*>();
+	std::shared_ptr<WINDOW*> menuWinPtr = std::make_shared<WINDOW*>();
+	std::shared_ptr<WINDOW*> warnWinPtr = std::make_shared<WINDOW*>();
+	std::shared_ptr<WINDOW*> connWinPtr = std::make_shared<WINDOW*>();
+	std::shared_ptr<WINDOW*> contextWinPtr = std::make_shared<WINDOW*>();
+	
+
+	std::shared_ptr<WINDOW*> activeWindowPtr = menuWinPtr;
 	refresh();
 
-	statusWin = create_newwin(bannerHeight,COLS,LINES-bannerHeight,0);
-	connWin = create_newwin(bannerHeight,connWidth,0,COLS-connWidth);
-	warnWin   = create_newwin(bannerHeight,COLS-connWidth,0,0);
-	menuWin   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,0);
-	contextWin   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,(COLS - feedWidth-1)/2);
+	*statusWinPtr = create_newwin(bannerHeight,COLS,LINES-bannerHeight,0);
+	*connWinPtr = create_newwin(bannerHeight,connWidth,0,COLS-connWidth);
+	*warnWinPtr   = create_newwin(bannerHeight,COLS-connWidth,0,0);
+	*menuWinPtr   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,0);
+	*contextWinPtr   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,(COLS - feedWidth-1)/2);
 	*feedWinPtr   = create_newwin(LINES-(2*bannerHeight),COLS-feedWidth-1,bannerHeight,(COLS-feedWidth));
 	
-	nodelay(menuWin,TRUE);
+	nodelay(*menuWinPtr,TRUE);
 
 	//Set up top level menu
 	std::vector<std::string>topMenuItems = {
@@ -642,15 +634,17 @@ void uiThreadFunction(UiData data)
 	set_item_userptr(top_items[topMenuItems.size()-1],(void*)triggerShutdown); //Final menu item, corresponding to exit
 
 
-	MENU *top_menu;
-	top_menu = new_menu((ITEM **)top_items);
-	set_menu_win(top_menu,menuWin);
-	set_menu_sub(top_menu,derwin(menuWin,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
-	set_menu_mark(top_menu,"");
-	post_menu(top_menu);
+	
+	std::shared_ptr<MENU*> top_menuPtr = std::make_shared<MENU*>();
+	*top_menuPtr = new_menu((ITEM **)top_items);
+	set_menu_win(*top_menuPtr,*menuWinPtr);
+	set_menu_sub(*top_menuPtr,derwin(*menuWinPtr,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
+	set_menu_mark(*top_menuPtr,"");
+	post_menu(*top_menuPtr);
+	std::shared_ptr<MENU*> active_menuPtr = top_menuPtr;
 
-	wrefresh(menuWin);
-	wrefresh(contextWin);
+	wrefresh(*menuWinPtr);
+	wrefresh(*contextWinPtr);
 	
 
 	std::string cameraMode = "Aperture";
@@ -659,11 +653,11 @@ void uiThreadFunction(UiData data)
 	//mvwaddstr(statusWin,1,1,generateStatusString(cameraValues.battery,cameraValues.expo,cameraValues.iso,cameraValues.aper).c_str());
 	//wrefresh(statusWin);
 	//Populate camera model
-	mvwaddstr(connWin,1,1,model.c_str());
-	wrefresh(connWin);
+	mvwaddstr(*connWinPtr,1,1,model.c_str());
+	wrefresh(*connWinPtr);
 	//Populate warnings
-	mvwaddstr(warnWin,1,1,"Camera not in Manual mode! SD card nearing capacity! Battery low!");
-	wrefresh(warnWin);
+	mvwaddstr(*warnWinPtr,1,1,"Camera not in Manual mode! SD card nearing capacity! Battery low!");
+	wrefresh(*warnWinPtr);
 
 	//TODO: This, and the the function to update the feed menu only worked when creating a pointer to every ncurses variable, and acting upon those
 	//pointers here. When I acted on the raw ncurses objects here it didnt work and made a whole separate window for the menu created in the function
@@ -672,75 +666,113 @@ void uiThreadFunction(UiData data)
 	//and always act upon them. Read the documentation on the make_shared (and similar) functions first to properly understand them.
 	MENU *feed_menu; //holds the camera event feed menu. The menu itself gets created and destroyed on each loop iteration
 	std::shared_ptr<MENU*> feed_menu_ptr = std::make_shared<MENU*>(feed_menu);
-	feedbuffer = data.node->getFeedBuffer();
-	ITEM **feed_items;
-	std::shared_ptr<ITEM**> feed_items_ptr = std::make_shared<ITEM**>(feed_items);
-	*feed_items_ptr = (ITEM **)calloc(feedbuffer.size()+1, sizeof(ITEM *));
-	for(int i = 0; i < feedbuffer.size(); i++)
+	*feedBufferPtr = nodeHandle->getFeedBuffer();
+	std::shared_ptr<ITEM**> feed_items_ptr = std::make_shared<ITEM**>();
+	*feed_items_ptr = (ITEM **)calloc(feedBufferPtr->size()+1, sizeof(ITEM *));
+	for(int i = 0; i < feedBufferPtr->size(); i++)
 	{
-		(*feed_items_ptr)[i] = new_item(feedbuffer[i].c_str(),"");
+		(*feed_items_ptr)[i] = new_item((*feedBufferPtr)[i].c_str(),"");
 	}
-	*feed_menu_ptr = new_menu((ITEM **)feed_items);
+	*feed_menu_ptr = new_menu((ITEM **)(*feed_items_ptr));
 	set_menu_win(*feed_menu_ptr,*feedWinPtr);
 	set_menu_sub(*feed_menu_ptr,derwin(*feedWinPtr,LINES-(2*bannerHeight)-4,(COLS-feedWidth-2)-2,1,1));
 	set_menu_mark(*feed_menu_ptr,"");
 	post_menu(*feed_menu_ptr);
 	wrefresh(*feedWinPtr);
 	
+	//Set up status window
+	*statusBufferPtr = nodeHandle->getSettingBuffer();
+	mvwaddstr(*statusWinPtr,1,1,generateStatusString((*statusBufferPtr).battery,(*statusBufferPtr).expo,(*statusBufferPtr).iso,(*statusBufferPtr).aper).c_str());
+	wrefresh(*statusWinPtr);
+
 	refresh();
+	int c;
+  	while (*exitFlag == false)
+  	{
 
-  while (localExitFlag == false)
-  {
-		exitMutex.lock();
-		localExitFlag = *(data.exitFlag);
-		exitMutex.unlock();
+			//Get user input
+			
+			c = getch();
+			switch(c)
+			{
+				case 'j' :
+					commandQueueMutex.lock();
+					uiCommandQueue->push_back(MENU_DOWN);
+					commandQueueMutex.unlock();
+					break;
+				case 'k' :
+					commandQueueMutex.lock();
+					uiCommandQueue->push_back(MENU_UP);
+					commandQueueMutex.unlock();
+					break;
+			}
 
-		//Extract command from queue
-		commandQueueMutex.lock();
-		if((data.commandQueue)->empty() == 1)
-		{
-			commandQueueMutex.unlock();
-			currentCommand = NONE;
-		}
-		else
-		{
-			currentCommand = (*(data.commandQueue))[0];
-			*(data.commandQueue)->erase(data.commandQueue->begin());
-			commandQueueMutex.unlock();
-		}
+			//Extract command from queue
+			commandQueueMutex.lock();
+			if(uiCommandQueue->empty() == 1)
+			{
+				commandQueueMutex.unlock();
+				currentCommand = NONE;
+			}
+			else
+			{
+				currentCommand = (*uiCommandQueue)[0];
+				uiCommandQueue->erase(uiCommandQueue->begin());
+				commandQueueMutex.unlock();
+			}
 
-		switch(currentCommand)
-		{
-			case NONE :
-				break;
-			case UPDATE_FEED :
-				updateFeedWindow(feedbufferptr,data.node,feedWinPtr,feed_menu_ptr,feed_items_ptr);
-				break;
-			default:
-				//Eventually need to throw some sort of error here once I have implemented all the commands
-				//and an error system
-				break;
-		}
+			switch(currentCommand)
+			{
+				case NONE :
+					break;
+				case UPDATE_FEED :
+					updateFeedWindow(feedBufferPtr,nodeHandle,feedWinPtr,feed_menu_ptr,feed_items_ptr);
+					break;
+				case UPDATE_STATUS_BANNER :
+					updateStatusWindow(statusBufferPtr,nodeHandle,statusWinPtr);
+					break;
+				case MENU_UP :
+					menu_driver(*active_menuPtr, REQ_UP_ITEM);
+					wrefresh(*activeWindowPtr);
+					break;
+				case MENU_DOWN :
+					menu_driver(*active_menuPtr, REQ_DOWN_ITEM);
+					wrefresh(*activeWindowPtr);
+					break;
+				default:
+					//Eventually need to throw some sort of error here once I have implemented all the commands
+					//and an error system
+					break;
+			}
 
-  }
+  	}
 
-  //Shutdown ncurses
+
+
+/////////////////////////////////////////////////////////
+	//Clean up
+	rclcpp::shutdown();
+  	//Shutdown ncurses
   	unpost_menu(feed_menu);
 	free_menu(feed_menu);
-	for(int i = 0; i < feedbuffer.size(); i++)
+	for(int i = 0; i < feedBufferPtr->size(); i++)
 	{
-		free_item(feed_items[i]);
+		free_item((*feed_items_ptr)[i]);
 	}
-	unpost_menu(top_menu);
-	free_menu(top_menu);
+	unpost_menu(*top_menuPtr);
+	free_menu(*top_menuPtr);
 	for(int i = 0; i < topMenuItems.size(); i++)
 	{
 		free_item(top_items[i]);
 	}
-	destroy_win(statusWin);
-	destroy_win(connWin);
-	destroy_win(warnWin);
-	destroy_win(menuWin);
-	destroy_win(feedWin);
+	destroy_win(*statusWinPtr);
+	destroy_win(*connWinPtr);
+	destroy_win(*warnWinPtr);
+	destroy_win(*menuWinPtr);
+	destroy_win(*feedWinPtr);
+	destroy_win(*contextWinPtr);
 	endwin();
+	nodeThread.join();
+
+	return 0;
 }
