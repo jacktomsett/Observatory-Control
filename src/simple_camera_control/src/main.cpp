@@ -37,6 +37,7 @@ enum UIcommand {
 	MENU_UP,
 	MENU_DOWN,
 	MENU_CHOOSE,
+	MENU_BACK,
 	NONE
 };
 
@@ -60,6 +61,38 @@ struct SettingBuffer{
 	std::string aper;
 };
 
+//Declare struct that will contain all the pointers needed for menu functions to work
+//I'm doing this so that every menu function will have an identical prototype. This avoids
+//having to implement code for every menu option in the main function. I don't
+//like giving the functions uneeded information but I can't see another way to avoid
+//it other than global variables. I think there probably is a way and I should research
+//design patterns. I think maybe a state machine might be useful but I need to read about it
+//One silver lining is that it will make adding new items to the struct easier while i am still
+//developing
+struct MenuFunctionData{
+	/*
+	std::shared_ptr<bool> exitFlag;
+	std::shared_ptr<WINDOW*> menuWindow;
+	std::shared_ptr<WINDOW*> contextWindow;
+	std::shared_ptr<WINDOW*> activeWindow;
+
+	std::shared_ptr<MENU*> topMenu;
+	std::shared_ptr<MENU*> settingMenu;
+	std::shared_ptr<MENU*> sequenceMenu;
+	std::shared_ptr<MENU*> activeMenu;
+	*/
+	bool* exitFlag;
+	WINDOW** menuWindowPtr;
+	WINDOW** contextWindowPtr;
+	WINDOW** activeWindowPtr;
+	WINDOW** previousWindowPtr;
+
+	MENU** topMenuPtr;
+	MENU** settingMenuPtr;
+	MENU** sequenceMenuPtr;
+	MENU** activeMenuPtr;
+	MENU** previousMenuPtr;
+};
 
 
 //Declare some helper functions for ncurses (copied from ncurses tutorials, might end up removing these in future refactoring)
@@ -67,9 +100,9 @@ WINDOW *create_newwin(int height, int width, int starty, int startx);
 void destroy_win(WINDOW *local_win);
 std::string generateStatusString(int batt, std::string expo, int iso, std::string focalLength);
 //Declare functions that correspond to the top level menu items
-void triggerSettingMenu(WINDOW* window);
-void triggerSequenceMenu(WINDOW* window);
-void triggerShutdown(bool* exitflag);
+void triggerSettingMenu(MenuFunctionData*);
+void triggerSequenceMenu(MenuFunctionData*);
+void triggerShutdown(MenuFunctionData*);
 
 
 
@@ -345,7 +378,6 @@ void uiThreadFunction(UiData data);
 
 
 
-
 WINDOW *create_newwin(int height, int width, int starty, int startx){
 	WINDOW *local_win;
 	local_win = newwin(height, width, starty, startx);
@@ -407,115 +439,26 @@ std::string generateStatusString(int batt, std::string expo, int iso, std::strin
 }
 
 //Define top level menu functions
-void triggerSettingMenu(WINDOW* window){
-	//Set up menu
-	std::vector<std::string>menuItems = {
-	"Exposure",
-	"ISO",
-	"Aperture"
-	};
-
-	ITEM **items;
-	items = (ITEM **)calloc(menuItems.size()+1, sizeof(ITEM *));
-	for(int i = 0; i < menuItems.size(); i++)
-	{
-		items[i] = new_item(menuItems[i].c_str(),"");
-	}
-	
-	MENU *menu;
-	menu = new_menu((ITEM **)items);
-	
-	set_menu_win(menu,window);
-	set_menu_sub(menu,derwin(window,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
-	set_menu_mark(menu,"");
-	post_menu(menu);
-	wrefresh(window);
-	
-	int c;
-	bool exitFlag = false; //Signal to exit loop
-	while( exitFlag == false)
-	{
-
-		c = wgetch(window);
-		switch(c)
-		{
-			case 'j':
-				menu_driver(menu, REQ_DOWN_ITEM);
-				break;
-			case 'k':
-				menu_driver(menu, REQ_UP_ITEM);
-				break;
-			case 'b':
-				exitFlag = true;
-				break;
-		}
-		wrefresh(window);
-	}
-	unpost_menu(menu);
-	free_menu(menu);
-	for(int i = 0; i < menuItems.size(); i++)
-	{
-		free_item(items[i]);
-	}
-	
-		
+void triggerSettingMenu(MenuFunctionData *menuFunctionParameters){ //I would have thought this could be acheived by passing the struct by reference, but I couldn't get it to work.
+																   //Although now I think about it, if we are passing the struct as a pointer then there is no need to have the struct members
+																   //also be pointers. i only made them pointers in the first place to minimise the amount of data to copy.
+	post_menu(*((*menuFunctionParameters).settingMenuPtr));
+	wrefresh(*((*menuFunctionParameters).contextWindowPtr));
+	(*menuFunctionParameters).activeWindowPtr = (*menuFunctionParameters).contextWindowPtr;
+	(*menuFunctionParameters).activeMenuPtr = (*menuFunctionParameters).settingMenuPtr;
+	(*menuFunctionParameters).previousWindowPtr = (*menuFunctionParameters).menuWindowPtr;
+	(*menuFunctionParameters).previousMenuPtr = (*menuFunctionParameters).topMenuPtr;
 }
-void triggerSequenceMenu(WINDOW* window){
-	//Set up menu
-	std::vector<std::string>menuItems = {
-	"Length",
-	"Name",
-	"StartSequence"
-	};
-
-	ITEM **items;
-	items = (ITEM **)calloc(menuItems.size()+1, sizeof(ITEM *));
-	for(int i = 0; i < menuItems.size(); i++)
-	{
-		items[i] = new_item(menuItems[i].c_str(),"");
-	}
-	
-	MENU *menu;
-	menu = new_menu((ITEM **)items);
-	
-	set_menu_win(menu,window);
-	set_menu_sub(menu,derwin(window,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
-	set_menu_mark(menu,"");
-	post_menu(menu);
-	wrefresh(window);
-	
-	int c;
-	bool exitFlag = false; //Signal to exit loop
-	while( exitFlag == false)
-	{
-
-		//executor.spin_some(); //definitely needs it own thread
-		c = wgetch(window);
-		switch(c)
-		{
-			case 'j':
-				menu_driver(menu, REQ_DOWN_ITEM);
-				break;
-			case 'k':
-				menu_driver(menu, REQ_UP_ITEM);
-				break;
-			case 'b':
-				exitFlag = true;
-				break;
-		}
-		wrefresh(window);
-	}
-	unpost_menu(menu);
-	free_menu(menu);
-	for(int i = 0; i < menuItems.size(); i++)
-	{
-		free_item(items[i]);
-	}
-	
-		
+void triggerSequenceMenu(MenuFunctionData *menuFunctionParameters){
+	post_menu(*((*menuFunctionParameters).sequenceMenuPtr));
+	wrefresh(*((*menuFunctionParameters).contextWindowPtr));
+	(*menuFunctionParameters).activeWindowPtr = (*menuFunctionParameters).contextWindowPtr;
+	(*menuFunctionParameters).activeMenuPtr = (*menuFunctionParameters).sequenceMenuPtr;
+	(*menuFunctionParameters).previousWindowPtr = (*menuFunctionParameters).menuWindowPtr;
+	(*menuFunctionParameters).previousMenuPtr = (*menuFunctionParameters).topMenuPtr;
 }
-void triggerShutdown(bool* exitflag){
-	*exitflag = true;
+void triggerShutdown(MenuFunctionData *pointers){
+	*((*pointers).exitFlag) = true;
 }
 
 void backgroundThreadFunction(SimpleControlInterface node)
@@ -574,7 +517,7 @@ int main(int argc, char * argv[]){
 	std::thread nodeThread([&executor](){executor.spin();}); //TODO: Move this lambda into its own (alread declared function). Ensure proper shutdown handling occurs
   
 	
-	std::shared_ptr<bool> exitFlag = std::make_shared<bool>(false); //FIXME: Now we have gone back to two threads, this doesnt need to be a pointer anymore
+	//std::shared_ptr<bool> exitFlag = std::make_shared<bool>(false); //FIXME: Now we have gone back to two threads, this doesnt need to be a pointer anymore
 
 
 //////////////////////////////////////////////////////////////////
@@ -583,6 +526,9 @@ int main(int argc, char * argv[]){
 	enum UIcommand currentCommand;
 	std::shared_ptr<std::vector<std::string>> feedBufferPtr = std::make_shared<std::vector<std::string>>();
 	std::shared_ptr<SettingBuffer> statusBufferPtr = std::make_shared<SettingBuffer>();
+	MenuFunctionData menuFunctionParameters;
+	bool shouldExit = false;
+	menuFunctionParameters.exitFlag = &shouldExit;
 
 	//Initialise ncurses here. Debating whether this should be the first command in the queue,
 	//depends on if there is ever a situation where you would not want to draw the ui at startup.
@@ -595,25 +541,37 @@ int main(int argc, char * argv[]){
 	//Declare windows
 	std::shared_ptr<WINDOW*> statusWinPtr = std::make_shared<WINDOW*>();
 	std::shared_ptr<WINDOW*> feedWinPtr = std::make_shared<WINDOW*>();
-	std::shared_ptr<WINDOW*> menuWinPtr = std::make_shared<WINDOW*>();
+	//std::shared_ptr<WINDOW*> menuWinPtr = std::make_shared<WINDOW*>();
+	//menuFunctionParameters.menuWindow = menuWinPtr;
+	//menuFunctionParameters.menuWindow = std::make_shared<WINDOW*>();
+	WINDOW* menuWindow;
+	menuFunctionParameters.menuWindowPtr = &menuWindow;
 	std::shared_ptr<WINDOW*> warnWinPtr = std::make_shared<WINDOW*>();
 	std::shared_ptr<WINDOW*> connWinPtr = std::make_shared<WINDOW*>();
-	std::shared_ptr<WINDOW*> contextWinPtr = std::make_shared<WINDOW*>();
-	
+	//std::shared_ptr<WINDOW*> contextWinPtr = std::make_shared<WINDOW*>();
+	//menuFunctionParameters.contextWindow = contextWinPtr;
+	//menuFunctionParameters.contextWindow = std::make_shared<WINDOW*>();
+	WINDOW* contextWindow;
+	menuFunctionParameters.contextWindowPtr = &contextWindow;
+	menuFunctionParameters.activeWindowPtr = menuFunctionParameters.menuWindowPtr;
+	menuFunctionParameters.previousWindowPtr = menuFunctionParameters.menuWindowPtr;
 
-	std::shared_ptr<WINDOW*> activeWindowPtr = menuWinPtr;
 	refresh();
 
 	*statusWinPtr = create_newwin(bannerHeight,COLS,LINES-bannerHeight,0);
 	*connWinPtr = create_newwin(bannerHeight,connWidth,0,COLS-connWidth);
 	*warnWinPtr   = create_newwin(bannerHeight,COLS-connWidth,0,0);
-	*menuWinPtr   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,0);
-	*contextWinPtr   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,(COLS - feedWidth-1)/2);
+	//*menuWinPtr   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,0);
+	*(menuFunctionParameters.menuWindowPtr)   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,0);
+	//*contextWinPtr   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,(COLS - feedWidth-1)/2);
+	*(menuFunctionParameters.contextWindowPtr)   = create_newwin(LINES-(2 * bannerHeight),(COLS - feedWidth-1)/2,bannerHeight,(COLS - feedWidth-1)/2);
 	*feedWinPtr   = create_newwin(LINES-(2*bannerHeight),COLS-feedWidth-1,bannerHeight,(COLS-feedWidth));
 	
-	nodelay(*menuWinPtr,TRUE);
+	//nodelay(*menuWinPtr,TRUE);
+	nodelay(*(menuFunctionParameters.menuWindowPtr),TRUE);
 
-	//Set up top level menu
+	//========  Set up menus
+	//Top level menu
 	std::vector<std::string>topMenuItems = {
 	"Change Setting",
 	"Request Sequence",
@@ -628,23 +586,78 @@ int main(int argc, char * argv[]){
 	{
 		top_items[i] = new_item(topMenuItems[i].c_str(),"");
 	}
-	//Set the user pointers (just experimenting for now)
+	//Set the user pointers
 	set_item_userptr(top_items[0],(void*)triggerSettingMenu);
-	set_item_userptr(top_items[2],(void*)triggerSequenceMenu);
+	set_item_userptr(top_items[1],(void*)triggerSequenceMenu);
 	set_item_userptr(top_items[topMenuItems.size()-1],(void*)triggerShutdown); //Final menu item, corresponding to exit
 
 
 	
-	std::shared_ptr<MENU*> top_menuPtr = std::make_shared<MENU*>();
-	*top_menuPtr = new_menu((ITEM **)top_items);
-	set_menu_win(*top_menuPtr,*menuWinPtr);
-	set_menu_sub(*top_menuPtr,derwin(*menuWinPtr,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
-	set_menu_mark(*top_menuPtr,"");
-	post_menu(*top_menuPtr);
-	std::shared_ptr<MENU*> active_menuPtr = top_menuPtr;
+	//std::shared_ptr<MENU*> top_menuPtr = std::make_shared<MENU*>();
+	//*top_menuPtr = new_menu((ITEM **)top_items);
+	MENU* topMenu;
+	menuFunctionParameters.topMenuPtr = &topMenu;
+	*(menuFunctionParameters.topMenuPtr) = new_menu((ITEM **)top_items);
+	//set_menu_win(*top_menuPtr,*menuWinPtr);
+	set_menu_win(*(menuFunctionParameters.topMenuPtr),*(menuFunctionParameters.menuWindowPtr));
+	//set_menu_sub(*top_menuPtr,derwin(*menuWinPtr,LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
+	set_menu_sub(*(menuFunctionParameters.topMenuPtr),derwin(*(menuFunctionParameters.menuWindowPtr),LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
+	set_menu_mark(*(menuFunctionParameters.topMenuPtr),"");
+	post_menu(*(menuFunctionParameters.topMenuPtr));
 
-	wrefresh(*menuWinPtr);
-	wrefresh(*contextWinPtr);
+	//menuFunctionParameters.topMenu = top_menuPtr;
+
+	//Setting menu
+	std::vector<std::string>settingMenuItems = {
+	"Exposure",
+	"ISO",
+	"Aperture"
+	};
+
+	ITEM **setting_items;
+	setting_items = (ITEM **)calloc(settingMenuItems.size()+1, sizeof(ITEM *));
+	for(int i = 0; i < settingMenuItems.size(); i++)
+	{
+		setting_items[i] = new_item(settingMenuItems[i].c_str(),"");
+	}
+	//TODO: Set the user pointers
+
+	MENU* settingMenu;
+	menuFunctionParameters.settingMenuPtr = &settingMenu;
+	*(menuFunctionParameters.settingMenuPtr) = new_menu((ITEM **)setting_items);
+	set_menu_win(*(menuFunctionParameters.settingMenuPtr),*(menuFunctionParameters.contextWindowPtr));
+	set_menu_sub(*(menuFunctionParameters.settingMenuPtr),derwin(*(menuFunctionParameters.contextWindowPtr),LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
+	set_menu_mark(*(menuFunctionParameters.settingMenuPtr),"");
+
+	//Sequence menu
+	std::vector<std::string>sequenceMenuItems = {
+	"Length",
+	"Name",
+	"StartSequence"
+	};
+
+	ITEM **sequence_items;
+	sequence_items = (ITEM **)calloc(sequenceMenuItems.size()+1, sizeof(ITEM *));
+	for(int i = 0; i < sequenceMenuItems.size(); i++)
+	{
+		sequence_items[i] = new_item(sequenceMenuItems[i].c_str(),"");
+	}
+	//TODO: Set the user pointers
+
+	MENU* sequenceMenu;
+	menuFunctionParameters.sequenceMenuPtr = &sequenceMenu;
+	*(menuFunctionParameters.sequenceMenuPtr) = new_menu((ITEM **)sequence_items);
+	set_menu_win(*(menuFunctionParameters.sequenceMenuPtr),*(menuFunctionParameters.contextWindowPtr));
+	set_menu_sub(*(menuFunctionParameters.sequenceMenuPtr),derwin(*(menuFunctionParameters.contextWindowPtr),LINES-(2 * bannerHeight)-4,((COLS - feedWidth-1)/2)-2,1,1));
+	set_menu_mark(*(menuFunctionParameters.sequenceMenuPtr),"");
+
+	//Set the active menu
+	menuFunctionParameters.activeMenuPtr = menuFunctionParameters.topMenuPtr;
+
+	//wrefresh(*menuWinPtr);
+	wrefresh(*(menuFunctionParameters.menuWindowPtr));
+	//wrefresh(*contextWinPtr);
+	wrefresh(*(menuFunctionParameters.contextWindowPtr));
 	
 
 	std::string cameraMode = "Aperture";
@@ -687,7 +700,7 @@ int main(int argc, char * argv[]){
 
 	refresh();
 	int c;
-  	while (*exitFlag == false)
+  	while (shouldExit == false)
   	{
 
 			//Get user input
@@ -695,6 +708,7 @@ int main(int argc, char * argv[]){
 			c = getch();
 			switch(c)
 			{
+				//TODO: Refactor into a function
 				case 'j' :
 					commandQueueMutex.lock();
 					uiCommandQueue->push_back(MENU_DOWN);
@@ -703,6 +717,16 @@ int main(int argc, char * argv[]){
 				case 'k' :
 					commandQueueMutex.lock();
 					uiCommandQueue->push_back(MENU_UP);
+					commandQueueMutex.unlock();
+					break;
+				case 'e' :
+					commandQueueMutex.lock();
+					uiCommandQueue->push_back(MENU_CHOOSE);
+					commandQueueMutex.unlock();
+					break;
+				case 'b' :
+					commandQueueMutex.lock();
+					uiCommandQueue->push_back(MENU_BACK);
 					commandQueueMutex.unlock();
 					break;
 			}
@@ -732,13 +756,30 @@ int main(int argc, char * argv[]){
 					updateStatusWindow(statusBufferPtr,nodeHandle,statusWinPtr);
 					break;
 				case MENU_UP :
-					menu_driver(*active_menuPtr, REQ_UP_ITEM);
-					wrefresh(*activeWindowPtr);
+					menu_driver(*(menuFunctionParameters.activeMenuPtr), REQ_UP_ITEM);
+					wrefresh(*(menuFunctionParameters.activeWindowPtr));
 					break;
 				case MENU_DOWN :
-					menu_driver(*active_menuPtr, REQ_DOWN_ITEM);
-					wrefresh(*activeWindowPtr);
+					menu_driver(*(menuFunctionParameters.activeMenuPtr), REQ_DOWN_ITEM);
+					wrefresh(*(menuFunctionParameters.activeWindowPtr));
 					break;
+				case MENU_CHOOSE :
+					//TODO: Should check for void pointer here. Also put into function
+					ITEM *cur;
+					void (*p)(MenuFunctionData*);
+					cur = current_item(*(menuFunctionParameters.activeMenuPtr));
+					p = reinterpret_cast<void (*)(MenuFunctionData*)>(item_userptr(cur));
+					p(&menuFunctionParameters);
+					break;
+				case MENU_BACK :
+					//TODO: Put into function
+					if(menuFunctionParameters.activeMenuPtr != menuFunctionParameters.topMenuPtr)
+					{
+						unpost_menu(*(menuFunctionParameters.activeMenuPtr));
+						menuFunctionParameters.activeMenuPtr = menuFunctionParameters.previousMenuPtr;
+						menuFunctionParameters.activeWindowPtr = menuFunctionParameters.previousWindowPtr;
+					}
+					
 				default:
 					//Eventually need to throw some sort of error here once I have implemented all the commands
 					//and an error system
@@ -759,8 +800,8 @@ int main(int argc, char * argv[]){
 	{
 		free_item((*feed_items_ptr)[i]);
 	}
-	unpost_menu(*top_menuPtr);
-	free_menu(*top_menuPtr);
+	unpost_menu(*(menuFunctionParameters.topMenuPtr));
+	free_menu(*(menuFunctionParameters.topMenuPtr));
 	for(int i = 0; i < topMenuItems.size(); i++)
 	{
 		free_item(top_items[i]);
@@ -768,9 +809,11 @@ int main(int argc, char * argv[]){
 	destroy_win(*statusWinPtr);
 	destroy_win(*connWinPtr);
 	destroy_win(*warnWinPtr);
-	destroy_win(*menuWinPtr);
+	//destroy_win(*menuWinPtr);
+	destroy_win(*(menuFunctionParameters.menuWindowPtr));
 	destroy_win(*feedWinPtr);
-	destroy_win(*contextWinPtr);
+	//destroy_win(*contextWinPtr);
+	destroy_win(*(menuFunctionParameters.contextWindowPtr));
 	endwin();
 	nodeThread.join();
 
