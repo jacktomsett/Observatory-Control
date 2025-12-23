@@ -156,6 +156,15 @@ class SimpleControlInterface : public rclcpp::Node
 				}
 				RCLCPP_INFO(this->get_logger(), "Listening for camera node to annouce iso status service...");
 			}
+			setIsoClient = this->create_client<interfaces::srv::IntRequest>("set_iso");
+			while(!setIsoClient->wait_for_service(std::chrono::seconds(1)))
+			{
+				if(!rclcpp::ok())
+				{
+					RCLCPP_ERROR(this->get_logger(), "client interrupted waiting for service to appear...");
+				}
+				RCLCPP_INFO(this->get_logger(), "Listening for camera node to annouce iso demand service...");
+			}
 			getBattClient = this->create_client<interfaces::srv::IntStatus>("battery_status");
 			while(!getBattClient->wait_for_service(std::chrono::seconds(1)))
 			{
@@ -198,7 +207,9 @@ class SimpleControlInterface : public rclcpp::Node
 		}
 		void sendIsoRequest(int iso)
 		{
-
+			auto request = std::make_shared<interfaces::srv::IntRequest::Request>();//TODO: Don't use auto, it just shows I dont know what I'm doing
+			request->demand = iso;
+			auto result_future = setIsoClient->async_send_request(request);
 		}
 		void sendAperRequest(int aper)
 		{
@@ -235,6 +246,7 @@ class SimpleControlInterface : public rclcpp::Node
 		rclcpp::Subscription<interfaces::msg::Event>::SharedPtr cameraEventSubscriber;
 		rclcpp::TimerBase::SharedPtr timer_;
 		rclcpp::Client<interfaces::srv::IntStatus>::SharedPtr getIsoClient;
+		rclcpp::Client<interfaces::srv::IntRequest>::SharedPtr setIsoClient;
 		rclcpp::Client<interfaces::srv::IntStatus>::SharedPtr getBattClient;
 		rclcpp::Client<interfaces::srv::StringStatus>::SharedPtr getExposureClient;
 		rclcpp::Client<interfaces::srv::StringStatus>::SharedPtr getApertureClient;
