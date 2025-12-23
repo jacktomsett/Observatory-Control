@@ -5,6 +5,7 @@
 #include <ncurses.h>
 #include <menu.h>
 
+
 //std includes
 #include <string>
 #include <thread>
@@ -33,14 +34,25 @@ enum UIcommand {
 	UPDATE_FEED,
 	UPDATE_STATUS_BANNER,
 	UPDATE_WARNINGS,
+	UPDATE_INPUT,
 	RESIZE_UI,
 	MENU_UP,
 	MENU_DOWN,
 	MENU_CHOOSE,
 	MENU_BACK,
+	SUBMIT_REQUEST,
 	NONE
 };
+enum programMode {
+	MENU_NAVIGATION,
+	ENTERING_TEXT
+};
 
+enum currentRequest {
+	EXPOSURE,
+	ISO,
+	APERTURE
+};
 //FIXME: Some nasty globals. Declared here so that all the top menu item functions can see
 //them. Still figuring out exactly how to structure the arguments of the top level menu
 //functions (ideally they should be uniform). I am imagining some kind of struct that gets
@@ -48,6 +60,9 @@ enum UIcommand {
 int bannerHeight = 3; //The height of the conn, status and warn windows
 int connWidth = 15;
 int feedWidth = 60;
+int inputHeight = 3;
+int inputWidth = 50;
+
 
 //Declare struct that will buffer setting values from camera
 struct SettingBuffer{
@@ -70,22 +85,15 @@ struct SettingBuffer{
 //One silver lining is that it will make adding new items to the struct easier while i am still
 //developing
 struct MenuFunctionData{
-	/*
-	std::shared_ptr<bool> exitFlag;
-	std::shared_ptr<WINDOW*> menuWindow;
-	std::shared_ptr<WINDOW*> contextWindow;
-	std::shared_ptr<WINDOW*> activeWindow;
-
-	std::shared_ptr<MENU*> topMenu;
-	std::shared_ptr<MENU*> settingMenu;
-	std::shared_ptr<MENU*> sequenceMenu;
-	std::shared_ptr<MENU*> activeMenu;
-	*/
+	std::string* inputBufferPtr;
 	bool* exitFlag;
+	enum programMode* modePtr;
+	enum currentRequest* requestTypePtr;
 	WINDOW** menuWindowPtr;
 	WINDOW** contextWindowPtr;
 	WINDOW** activeWindowPtr;
 	WINDOW** previousWindowPtr;
+	WINDOW** inputWindowPtr;
 
 	MENU** topMenuPtr;
 	MENU** settingMenuPtr;
@@ -103,6 +111,11 @@ std::string generateStatusString(int batt, std::string expo, int iso, std::strin
 void triggerSettingMenu(MenuFunctionData*);
 void triggerSequenceMenu(MenuFunctionData*);
 void triggerShutdown(MenuFunctionData*);
+
+//Declare functions corresponding to Setting menu Items
+void triggerExposureSettingRequest(MenuFunctionData*);
+//void triggerIsoSettingRequest(MenuFunctionData*)
+//void triggerApertureSettingRequest(MenuFunctionData*)
 
 
 
@@ -181,7 +194,7 @@ class SimpleControlInterface : public rclcpp::Node
 		}
 		void sendExpRequest(int exp)
 		{
-
+			
 		}
 		void sendIsoRequest(int iso)
 		{
@@ -461,6 +474,34 @@ void triggerShutdown(MenuFunctionData *pointers){
 	*((*pointers).exitFlag) = true;
 }
 
+void triggerExposureSettingInput(MenuFunctionData *pointers)
+{
+	//Clear input buffer
+	*((*pointers).inputBufferPtr) = "";
+	//Display input window
+	std::string inputBoxTitle = "New exposure setting:";
+	*((*pointers).inputWindowPtr)   = create_newwin(inputHeight,inputWidth,(LINES/2)-inputHeight,(COLS/2)-inputWidth);
+	mvwaddstr(*((*pointers).inputWindowPtr),0,1,inputBoxTitle.c_str());
+	wmove(*((*pointers).inputWindowPtr),1,1);
+	*((*pointers).modePtr) = ENTERING_TEXT;
+	*((*pointers).requestTypePtr) = EXPOSURE;
+	wrefresh(*((*pointers).inputWindowPtr));
+}
+void triggerIsoSettingInput(MenuFunctionData *pointers)
+{
+	//Clear input buffer
+	*((*pointers).inputBufferPtr) = "";
+	//Display input window
+	std::string inputBoxTitle = "New ISO setting:";
+	*((*pointers).inputWindowPtr)   = create_newwin(inputHeight,inputWidth,(LINES/2)-inputHeight,(COLS/2)-inputWidth);
+	mvwaddstr(*((*pointers).inputWindowPtr),0,1,inputBoxTitle.c_str());
+	wmove(*((*pointers).inputWindowPtr),1,1);
+	*((*pointers).modePtr) = ENTERING_TEXT;
+	*((*pointers).requestTypePtr) = ISO;
+	wrefresh(*((*pointers).inputWindowPtr));
+}
+//void triggerApertureSettingInput(MenuFunctionData*)
+
 void backgroundThreadFunction(SimpleControlInterface node)
 {
 	//Spin node to check for new subscription messages
@@ -515,21 +556,24 @@ int main(int argc, char * argv[]){
 	rclcpp::executors::MultiThreadedExecutor executor;
 	executor.add_node(nodeHandle);
 	std::thread nodeThread([&executor](){executor.spin();}); //TODO: Move this lambda into its own (alread declared function). Ensure proper shutdown handling occurs
-  
-	
-	//std::shared_ptr<bool> exitFlag = std::make_shared<bool>(false); //FIXME: Now we have gone back to two threads, this doesnt need to be a pointer anymore
 
 
 //////////////////////////////////////////////////////////////////
   	//TODO: Fill out barebones template along the lines of notebook. Just get the exit flag working and shutdown working first
   	//and fix ros node shutdown too while you're at it
 	enum UIcommand currentCommand;
+	
 	std::shared_ptr<std::vector<std::string>> feedBufferPtr = std::make_shared<std::vector<std::string>>();
 	std::shared_ptr<SettingBuffer> statusBufferPtr = std::make_shared<SettingBuffer>();
 	MenuFunctionData menuFunctionParameters;
 	bool shouldExit = false;
+	std::string inputBuffer;
+	enum programMode mode = MENU_NAVIGATION;
+	enum currentRequest requestType;
+	menuFunctionParameters.inputBufferPtr = &inputBuffer;
 	menuFunctionParameters.exitFlag = &shouldExit;
-
+	menuFunctionParameters.modePtr = &mode;
+	menuFunctionParameters.requestTypePtr = &requestType;
 	//Initialise ncurses here. Debating whether this should be the first command in the queue,
 	//depends on if there is ever a situation where you would not want to draw the ui at startup.
 	initscr();	//Start curses mode
@@ -541,20 +585,16 @@ int main(int argc, char * argv[]){
 	//Declare windows
 	std::shared_ptr<WINDOW*> statusWinPtr = std::make_shared<WINDOW*>();
 	std::shared_ptr<WINDOW*> feedWinPtr = std::make_shared<WINDOW*>();
-	//std::shared_ptr<WINDOW*> menuWinPtr = std::make_shared<WINDOW*>();
-	//menuFunctionParameters.menuWindow = menuWinPtr;
-	//menuFunctionParameters.menuWindow = std::make_shared<WINDOW*>();
 	WINDOW* menuWindow;
 	menuFunctionParameters.menuWindowPtr = &menuWindow;
 	std::shared_ptr<WINDOW*> warnWinPtr = std::make_shared<WINDOW*>();
 	std::shared_ptr<WINDOW*> connWinPtr = std::make_shared<WINDOW*>();
-	//std::shared_ptr<WINDOW*> contextWinPtr = std::make_shared<WINDOW*>();
-	//menuFunctionParameters.contextWindow = contextWinPtr;
-	//menuFunctionParameters.contextWindow = std::make_shared<WINDOW*>();
 	WINDOW* contextWindow;
 	menuFunctionParameters.contextWindowPtr = &contextWindow;
 	menuFunctionParameters.activeWindowPtr = menuFunctionParameters.menuWindowPtr;
 	menuFunctionParameters.previousWindowPtr = menuFunctionParameters.menuWindowPtr;
+	WINDOW* inputWindow;
+	menuFunctionParameters.inputWindowPtr = &inputWindow;
 
 	refresh();
 
@@ -621,6 +661,8 @@ int main(int argc, char * argv[]){
 		setting_items[i] = new_item(settingMenuItems[i].c_str(),"");
 	}
 	//TODO: Set the user pointers
+	set_item_userptr(setting_items[0],(void*)triggerExposureSettingInput);
+	set_item_userptr(setting_items[1],(void*)triggerIsoSettingInput);
 
 	MENU* settingMenu;
 	menuFunctionParameters.settingMenuPtr = &settingMenu;
@@ -706,31 +748,91 @@ int main(int argc, char * argv[]){
 			//Get user input
 			
 			c = getch();
-			switch(c)
+			if(mode == MENU_NAVIGATION)
 			{
-				//TODO: Refactor into a function
-				case 'j' :
-					commandQueueMutex.lock();
-					uiCommandQueue->push_back(MENU_DOWN);
-					commandQueueMutex.unlock();
-					break;
-				case 'k' :
-					commandQueueMutex.lock();
-					uiCommandQueue->push_back(MENU_UP);
-					commandQueueMutex.unlock();
-					break;
-				case 'e' :
-					commandQueueMutex.lock();
-					uiCommandQueue->push_back(MENU_CHOOSE);
-					commandQueueMutex.unlock();
-					break;
-				case 'b' :
-					commandQueueMutex.lock();
-					uiCommandQueue->push_back(MENU_BACK);
-					commandQueueMutex.unlock();
-					break;
+				switch(c)
+				{
+					//TODO: Refactor into a function
+					case KEY_DOWN :
+						commandQueueMutex.lock();
+						uiCommandQueue->push_back(MENU_DOWN);
+						commandQueueMutex.unlock();
+						break;
+					case 'j' :
+						commandQueueMutex.lock();
+						uiCommandQueue->push_back(MENU_DOWN);
+						commandQueueMutex.unlock();
+						break;
+					case KEY_UP :
+						commandQueueMutex.lock();
+						uiCommandQueue->push_back(MENU_UP);
+						commandQueueMutex.unlock();
+						break;
+					case 'k' :
+						commandQueueMutex.lock();
+						uiCommandQueue->push_back(MENU_UP);
+						commandQueueMutex.unlock();
+						break;
+					case 10  : //Enter key, I think
+						commandQueueMutex.lock();
+						uiCommandQueue->push_back(MENU_CHOOSE);
+						commandQueueMutex.unlock();
+						break;
+					case KEY_RIGHT : //Enter key, I think
+						commandQueueMutex.lock();
+						uiCommandQueue->push_back(MENU_CHOOSE);
+						commandQueueMutex.unlock();
+						break;
+					case KEY_LEFT :
+						commandQueueMutex.lock();
+						uiCommandQueue->push_back(MENU_BACK);
+						commandQueueMutex.unlock();
+						break;
+					case KEY_BACKSPACE :
+						commandQueueMutex.lock();
+						uiCommandQueue->push_back(MENU_BACK);
+						commandQueueMutex.unlock();
+						break;
+					default :
+						break;
+				}
 			}
-
+			if(mode == ENTERING_TEXT)
+			{
+				switch(c)
+				{
+					//TODO: Refactor into a function
+					case 10  : //Enter key, I think
+						mode = MENU_NAVIGATION;
+						commandQueueMutex.lock();
+						uiCommandQueue->push_back(SUBMIT_REQUEST);
+						commandQueueMutex.unlock();
+						break;
+					//TODO: Add functionality to move about the buffer
+					case KEY_BACKSPACE : //Backspace
+						inputBuffer = inputBuffer.substr(0,inputBuffer.size()-1);
+						commandQueueMutex.lock();
+						uiCommandQueue->push_back(UPDATE_INPUT);
+						commandQueueMutex.unlock();
+					case KEY_LEFT :
+						break;
+					case KEY_RIGHT :
+						break;
+					case KEY_UP :
+						break;
+					case KEY_DOWN :
+						break;
+					case ERR :
+						break;
+					default:
+						inputBuffer = inputBuffer + (char)c;
+						commandQueueMutex.lock();
+						uiCommandQueue->push_back(UPDATE_INPUT);
+						commandQueueMutex.unlock();
+						break;
+					
+				}
+			}
 			//Extract command from queue
 			commandQueueMutex.lock();
 			if(uiCommandQueue->empty() == 1)
@@ -755,6 +857,14 @@ int main(int argc, char * argv[]){
 				case UPDATE_STATUS_BANNER :
 					updateStatusWindow(statusBufferPtr,nodeHandle,statusWinPtr);
 					break;
+				case UPDATE_INPUT :
+					//TODO: Put into function
+					//clear any existing input
+					wmove(inputWindow,1,1);
+					wclrtoeol(inputWindow); //FIXME: This is also clearing part of the border
+					waddstr(inputWindow,inputBuffer.c_str());
+					wrefresh(inputWindow);
+					break;
 				case MENU_UP :
 					menu_driver(*(menuFunctionParameters.activeMenuPtr), REQ_UP_ITEM);
 					wrefresh(*(menuFunctionParameters.activeWindowPtr));
@@ -776,9 +886,33 @@ int main(int argc, char * argv[]){
 					if(menuFunctionParameters.activeMenuPtr != menuFunctionParameters.topMenuPtr)
 					{
 						unpost_menu(*(menuFunctionParameters.activeMenuPtr));
+						wrefresh(*(menuFunctionParameters.activeWindowPtr));
 						menuFunctionParameters.activeMenuPtr = menuFunctionParameters.previousMenuPtr;
 						menuFunctionParameters.activeWindowPtr = menuFunctionParameters.previousWindowPtr;
 					}
+					break;
+				case SUBMIT_REQUEST : 
+					//TODO: Placeholder that just clears the input window. Doesn't even clear it properly
+					wclear(inputWindow);
+					destroy_win(inputWindow);
+					//FIXME: Destroying the window leaves holes in the menu and context windows, we should redraw them
+					switch(requestType)
+					{
+						//FIXME: Need to check the input wont crash stoi before calling it.
+						case EXPOSURE :
+							nodeHandle->sendExpRequest(std::stoi(inputBuffer));
+							break;
+						case ISO :
+							nodeHandle->sendIsoRequest(std::stoi(inputBuffer));
+							break;
+						case APERTURE :
+							nodeHandle->sendAperRequest(std::stoi(inputBuffer));
+							break;
+						default: //TODO: Throw an error here, should never reach here
+							break;
+					}
+
+					break;
 					
 				default:
 					//Eventually need to throw some sort of error here once I have implemented all the commands
