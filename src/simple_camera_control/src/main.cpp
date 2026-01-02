@@ -102,6 +102,12 @@ struct MenuFunctionData{
 	MENU** previousMenuPtr;
 };
 
+//Declare a struct to buffer information before making a sequence request
+struct SequenceData{
+	std::string name;
+	int length;
+};
+
 
 //Declare some helper functions for ncurses (copied from ncurses tutorials, might end up removing these in future refactoring)
 WINDOW *create_newwin(int height, int width, int starty, int startx);
