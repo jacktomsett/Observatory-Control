@@ -26,6 +26,7 @@ std::mutex topicBufferMutex;
 std::mutex valueBufferMutex;
 std::mutex exitMutex;
 std::mutex commandQueueMutex;
+std::mutex sequenceBufferMutex;
 
 //UI Commands
 enum UIcommand {
@@ -136,11 +137,14 @@ class SimpleControlInterface : public rclcpp::Node
 			: Node("simple_control"),
 			  uiCommandQueue(uiCommQueue)
 		{
+			//Initialise buffers
 			feedBufferMax = 100; //TODO: Specify this via a ROS2 parameter
 			settingBuffer.battery = 0; //-1 signifies an error (like the camera isnt connected to the camera node)
 			settingBuffer.expo = "0";
 			settingBuffer.iso = 0;
 			settingBuffer.aper = "0";
+			sequenceBuffer.name = "";
+			sequenceBuffer.length = 0;
 			//Create callback group
 			backgroundFetchCallbackGroup = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
 
@@ -247,6 +251,15 @@ class SimpleControlInterface : public rclcpp::Node
 			buffer = settingBuffer;
 			valueBufferMutex.unlock();
 			return buffer;
+		}
+		SequenceData getSequenceBuffer()
+		{
+			SequenceData buffer;
+			sequenceBufferMutex.lock();
+			buffer = sequenceBuffer;
+			sequenceBufferMutex.unlock();
+			return buffer;
+				
 		}
 	private:
 		rclcpp::Subscription<interfaces::msg::Event>::SharedPtr cameraEventSubscriber;
@@ -396,6 +409,7 @@ class SimpleControlInterface : public rclcpp::Node
 		std::vector<std::string> feedBuffer;
 		int feedBufferMax;
 		SettingBuffer settingBuffer;
+		SequenceData sequenceBuffer;
 };
 
 
