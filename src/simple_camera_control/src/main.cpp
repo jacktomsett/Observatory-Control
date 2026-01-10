@@ -259,7 +259,21 @@ class SimpleControlInterface : public rclcpp::Node
 			buffer = sequenceBuffer;
 			sequenceBufferMutex.unlock();
 			return buffer;
-				
+		}
+		void setSequenceName(std::string name)
+		{
+				sequenceBufferMutex.lock();
+				sequenceBuffer.name = name;
+				sequenceBufferMutex.unlock();
+				return;
+		}
+		void setSequenceLength(int)
+		{
+				//TODO: Error check here that number is not negative
+				sequenceBufferMutex.lock();
+				sequenceBuffer.length = length;
+				sequenceBufferMutex.unlock();
+				return;
 		}
 	private:
 		rclcpp::Subscription<interfaces::msg::Event>::SharedPtr cameraEventSubscriber;
