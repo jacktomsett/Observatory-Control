@@ -14,12 +14,14 @@
 
 //Regular ROS2 includes
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 
 //Project ROS2 includes
 #include "interfaces/msg/event.hpp"
 #include "interfaces/srv/int_request.hpp"
 #include "interfaces/srv/int_status.hpp"
 #include "interfaces/srv/string_status.hpp"
+#include "interfaces/action/sequence.hpp"
 
 //Mutexes
 std::mutex topicBufferMutex;
@@ -201,7 +203,8 @@ class SimpleControlInterface : public rclcpp::Node
 					RCLCPP_ERROR(this->get_logger(), "client interrupted waiting for service to appear...");
 				}
 				RCLCPP_INFO(this->get_logger(), "Listening for camera node to annouce aperture status service...");
-			}			
+			}
+			this->sequeceRequestClientPtr = rclcpp_action::create_client<interfaces::action::Sequence>(this,"sequence");
 			//Init timers //TODO: Need to investigate timers more, like what happens when it is still processing the last callback when the next one arrives
 			//TODO: Also it would be nice if period of the timer was a ros parameter
 			//TODO: Definitely need to add a mechanism to cancel timer if the previous callback is still running
@@ -209,7 +212,26 @@ class SimpleControlInterface : public rclcpp::Node
 		}
 		void sendPhotoRequest()
 		{
-
+				//TODO: Get rid of auto keyword
+				auto goal_msg = interfaces::action::Sequence::Goal();
+				sequenceBufferMutex.lock();
+				goal_msg.name = sequenceBuffer.name;
+				goal_msg.length = sequenceBuffer.length;
+				sequenceBufferMutex.unlock();
+				auto send_goal_options = rclcpp_action::Client<interfaces::action::Sequence>::SendGoalOptions();
+				send_goal_options.goal_response_callback = [this](const rclcpp_action::ClientGoalHandle<interfaces::action::Sequence>::SharedPtr & goal_handle)
+				{
+								//TODO: Work out how to get the response from the server to the UI. Also define a proper function for it because I don't like lambdas.
+				};
+				send_goal_options.feedback_callback = [this](rclcpp_action::ClientGoalHandle<interfaces::action::Sequence>::SharedPtr, const std::shared_ptr<const interfaces::action::Sequence::Feedback> feedback)
+				{
+								//TODO: Send the current sequence value to the UI. The easiest way might be to add it to the setting buffer and update the buffers value here (if this is the way thats taken then the setting buffer should probably be renamed as it's not really a setting
+				};
+				send_goal_options.result_callback = [this](const rclcpp_action::ClientGoalHandle<interfaces::action::Sequence>::WrappedResult & result)
+				{
+								//TODO: Decide how we want the program to react when a sequence is finished. Maybe a popup notification or something. Maybe nothing
+				};
+				this->sequeceRequestClientPtr->async_send_goal(goal_msg, send_goal_options);
 		}
 		void sendExpRequest(int exp)
 		{
@@ -274,6 +296,7 @@ class SimpleControlInterface : public rclcpp::Node
 				sequenceBuffer.length = length;
 				sequenceBufferMutex.unlock();
 				return;
+		
 		}
 	private:
 		rclcpp::Subscription<interfaces::msg::Event>::SharedPtr cameraEventSubscriber;
@@ -284,6 +307,7 @@ class SimpleControlInterface : public rclcpp::Node
 		rclcpp::Client<interfaces::srv::StringStatus>::SharedPtr getExposureClient;
 		rclcpp::Client<interfaces::srv::StringStatus>::SharedPtr getApertureClient;
 		rclcpp::CallbackGroup::SharedPtr backgroundFetchCallbackGroup;
+		rclcpp_action::Client<interfaces::action::Sequence>::SharedPtr sequenceRequestClientPtr;
 		void camera_event_topic_callback(const interfaces::msg::Event & msg)
 		{
 			//Add new event to buffer
