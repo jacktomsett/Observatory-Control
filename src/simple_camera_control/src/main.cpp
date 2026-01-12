@@ -491,7 +491,7 @@ void destroy_win(WINDOW *local_win){
 }
 
 std::string generateStatusString(int batt, std::string expo, int iso, std::string focalLength) {
-	std::string battString,expoString,isoString,focalLengthString;
+	std::string battString,expoString,isoString,focalLengthString; //TODO: Add current sequence progress to this bar
 	if(batt < 0)
 	{
 		battString = "-";
@@ -786,7 +786,7 @@ int main(int argc, char * argv[]){
 	"Length",
 	"Name",
 	"StartSequence"
-	};
+	}; //TODO: Add an option to send a cancel request to the currently running sequence
 
 	ITEM **sequence_items;
 	sequence_items = (ITEM **)calloc(sequenceMenuItems.size()+1, sizeof(ITEM *));
