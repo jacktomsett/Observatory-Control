@@ -11,19 +11,24 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(interfaces REQUIRED)
 
 add_executable(simple_control src/main.cpp)
-target_link_libraries(simple_control -lncurses -lmenu rclcpp::rclcpp ${interfaces_TARGETS})
+target_link_libraries(simple_control -lncurses -lmenu)
+
 target_include_directories(simple_control PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 	$<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
-#ament_target_dependencies(
-	#simple_control
-	#"rclcpp"
-	#"interfaces"
-	#)
+ament_target_dependencies(
+	simple_control
+	"rclcpp"
+	"rclcpp_action"
+	"rclcpp_components"
+	"interfaces"
+	)
 
 install(TARGETS simple_control
 	DESTINATION lib/${PROJECT_NAME})

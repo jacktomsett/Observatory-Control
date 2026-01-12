@@ -54,7 +54,9 @@ enum programMode {
 enum currentRequest {
 	EXPOSURE,
 	ISO,
-	APERTURE
+	APERTURE,
+	SEQUENCE_LENGTH,
+	SEQUENCE_NAME
 };
 //FIXME: Some nasty globals. Declared here so that all the top menu item functions can see
 //them. Still figuring out exactly how to structure the arguments of the top level menu
@@ -79,6 +81,9 @@ struct SettingBuffer{
 	std::string aper;
 };
 
+//Forward declare ros node. TODO: Properly separate this file into headers and source files
+class SimpleControlInterface;
+
 //Declare struct that will contain all the pointers needed for menu functions to work
 //I'm doing this so that every menu function will have an identical prototype. This avoids
 //having to implement code for every menu option in the main function. I don't
@@ -90,6 +95,7 @@ struct SettingBuffer{
 struct MenuFunctionData{
 	std::string* inputBufferPtr;
 	bool* exitFlag;
+	std::shared_ptr<SimpleControlInterface> node;
 	enum programMode* modePtr;
 	enum currentRequest* requestTypePtr;
 	WINDOW** menuWindowPtr;
@@ -204,13 +210,13 @@ class SimpleControlInterface : public rclcpp::Node
 				}
 				RCLCPP_INFO(this->get_logger(), "Listening for camera node to annouce aperture status service...");
 			}
-			this->sequeceRequestClientPtr = rclcpp_action::create_client<interfaces::action::Sequence>(this,"sequence");
+			this->sequenceRequestClientPtr = rclcpp_action::create_client<interfaces::action::Sequence>(this,"sequence");
 			//Init timers //TODO: Need to investigate timers more, like what happens when it is still processing the last callback when the next one arrives
 			//TODO: Also it would be nice if period of the timer was a ros parameter
 			//TODO: Definitely need to add a mechanism to cancel timer if the previous callback is still running
 			timer_ = this->create_wall_timer(std::chrono::milliseconds(8000), std::bind(&SimpleControlInterface::timerCallback, this),backgroundFetchCallbackGroup);
 		}
-		void sendPhotoRequest()
+		void sendSequenceRequest()
 		{
 				//TODO: Get rid of auto keyword
 				auto goal_msg = interfaces::action::Sequence::Goal();
@@ -231,7 +237,7 @@ class SimpleControlInterface : public rclcpp::Node
 				{
 								//TODO: Decide how we want the program to react when a sequence is finished. Maybe a popup notification or something. Maybe nothing
 				};
-				this->sequeceRequestClientPtr->async_send_goal(goal_msg, send_goal_options);
+				this->sequenceRequestClientPtr->async_send_goal(goal_msg, send_goal_options);
 		}
 		void sendExpRequest(int exp)
 		{
@@ -289,7 +295,7 @@ class SimpleControlInterface : public rclcpp::Node
 				sequenceBufferMutex.unlock();
 				return;
 		}
-		void setSequenceLength(int)
+		void setSequenceLength(int length)
 		{
 				//TODO: Error check here that number is not negative
 				sequenceBufferMutex.lock();
@@ -543,7 +549,12 @@ void triggerSequenceMenu(MenuFunctionData *menuFunctionParameters){
 void triggerShutdown(MenuFunctionData *pointers){
 	*((*pointers).exitFlag) = true;
 }
-
+void triggerSequenceRequest(MenuFunctionData *pointers){
+	//Seems pointless wrapping this function, but eventually we might want to do more things here
+	//such as displaying the camera response ect.
+	((*pointers).node)->sendSequenceRequest();
+}
+//TODO: The following functions could be rafactored into a single function with an argument
 void triggerExposureSettingInput(MenuFunctionData *pointers)
 {
 	//Clear input buffer
@@ -572,6 +583,34 @@ void triggerIsoSettingInput(MenuFunctionData *pointers)
 }
 //void triggerApertureSettingInput(MenuFunctionData*)
 
+void triggerSequenceLengthInput(MenuFunctionData *pointers)
+{
+	//Clear input buffer
+	*((*pointers).inputBufferPtr) = "";
+	//Display input window
+	std::string inputBoxTitle = "Sequence length:";
+	*((*pointers).inputWindowPtr)   = create_newwin(inputHeight,inputWidth,(LINES/2)-inputHeight,(COLS/2)-inputWidth);
+	mvwaddstr(*((*pointers).inputWindowPtr),0,1,inputBoxTitle.c_str());
+	wmove(*((*pointers).inputWindowPtr),1,1);
+	*((*pointers).modePtr) = ENTERING_TEXT;
+	*((*pointers).requestTypePtr) = SEQUENCE_LENGTH;
+	wrefresh(*((*pointers).inputWindowPtr));
+}
+
+
+void triggerSequenceNameInput(MenuFunctionData *pointers)
+{
+	//Clear input buffer
+	*((*pointers).inputBufferPtr) = "";
+	//Display input window
+	std::string inputBoxTitle = "Sequence name:";
+	*((*pointers).inputWindowPtr)   = create_newwin(inputHeight,inputWidth,(LINES/2)-inputHeight,(COLS/2)-inputWidth);
+	mvwaddstr(*((*pointers).inputWindowPtr),0,1,inputBoxTitle.c_str());
+	wmove(*((*pointers).inputWindowPtr),1,1);
+	*((*pointers).modePtr) = ENTERING_TEXT;
+	*((*pointers).requestTypePtr) = SEQUENCE_NAME;
+	wrefresh(*((*pointers).inputWindowPtr));
+}
 void backgroundThreadFunction(SimpleControlInterface node)
 {
 	//Spin node to check for new subscription messages
@@ -642,6 +681,7 @@ int main(int argc, char * argv[]){
 	enum currentRequest requestType;
 	menuFunctionParameters.inputBufferPtr = &inputBuffer;
 	menuFunctionParameters.exitFlag = &shouldExit;
+	menuFunctionParameters.node = nodeHandle;
 	menuFunctionParameters.modePtr = &mode;
 	menuFunctionParameters.requestTypePtr = &requestType;
 	//Initialise ncurses here. Debating whether this should be the first command in the queue,
@@ -730,7 +770,7 @@ int main(int argc, char * argv[]){
 	{
 		setting_items[i] = new_item(settingMenuItems[i].c_str(),"");
 	}
-	//TODO: Set the user pointers
+	//TODO: Set the aperture user pointer
 	set_item_userptr(setting_items[0],(void*)triggerExposureSettingInput);
 	set_item_userptr(setting_items[1],(void*)triggerIsoSettingInput);
 
@@ -755,6 +795,9 @@ int main(int argc, char * argv[]){
 		sequence_items[i] = new_item(sequenceMenuItems[i].c_str(),"");
 	}
 	//TODO: Set the user pointers
+	set_item_userptr(sequence_items[0],(void*)triggerSequenceLengthInput);
+	set_item_userptr(sequence_items[1],(void*)triggerSequenceNameInput);
+	set_item_userptr(sequence_items[2],(void*)triggerSequenceRequest);
 
 	MENU* sequenceMenu;
 	menuFunctionParameters.sequenceMenuPtr = &sequenceMenu;
@@ -977,6 +1020,12 @@ int main(int argc, char * argv[]){
 							break;
 						case APERTURE :
 							nodeHandle->sendAperRequest(std::stoi(inputBuffer));
+							break;
+				    		case SEQUENCE_LENGTH :
+							nodeHandle->setSequenceLength(std::stoi(inputBuffer));
+							break;
+						case SEQUENCE_NAME :
+							nodeHandle->setSequenceName(inputBuffer);
 							break;
 						default: //TODO: Throw an error here, should never reach here
 							break;
