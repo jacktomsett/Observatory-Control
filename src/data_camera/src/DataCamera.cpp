@@ -796,7 +796,7 @@ rclcpp_action::GoalResponse DataCamera::sequenceGoal(
   rclcpp_action::GoalResponse response;
   RCLCPP_INFO_STREAM(this->get_logger(),
     "Received request for photo sequence containing " << goal->length << " photos");
-  if (currentSequenceId == "") {
+  if (currentSequenceId == "") { //TODO: Should also reject sequence if no camera is connected
     (void) uuid; //TODO: Find out why this is cast to void in the example
     RCLCPP_INFO_STREAM(this->get_logger(), "Sequence request accepted");
     response = rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
