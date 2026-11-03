@@ -18,20 +18,20 @@ include_directories(include)
 
 
 add_executable(camera_node src/camera_node.cpp src/DataCamera.cpp src/EventsClasses.cpp)
-target_link_libraries(camera_node -lgphoto2 -lgphoto2_port)
+target_link_libraries(camera_node PUBLIC -lgphoto2 -lgphoto2_port rclcpp::rclcpp rclcpp_action::rclcpp_action interfaces::interfaces)
 
 target_include_directories(camera_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
 target_compile_features(camera_node PUBLIC c_std_99 cxx_std_17 cxx_std_20)  # Require C99 and C++17
-ament_target_dependencies(
-  camera_node
-  "rclcpp"
-  "rclcpp_action"
-  "rclcpp_components"
-  "interfaces"
-)
+#target_link_libraries(
+#  camera_node
+#  "rclcpp"
+#  "rclcpp_action"
+#  "rclcpp_components"
+#  "interfaces"
+#)
 
 install(TARGETS camera_node
   DESTINATION lib/${PROJECT_NAME})

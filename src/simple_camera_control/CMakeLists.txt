@@ -16,19 +16,21 @@ find_package(rclcpp_components REQUIRED)
 find_package(interfaces REQUIRED)
 
 add_executable(simple_control src/main.cpp)
-target_link_libraries(simple_control -lncurses -lmenu)
+#target_link_libraries(simple_control PUBLIC -lncurses -lmenu rclcpp::rclcpp rclcpp_action::rclcpp_action rclcpp_components::rclcpp_components interfaces::interfaces)
+target_link_libraries(simple_control PUBLIC -lncurses -lmenu rclcpp::rclcpp rclcpp_action::rclcpp_action interfaces::interfaces)
 
 target_include_directories(simple_control PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 	$<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
-ament_target_dependencies(
-	simple_control
-	"rclcpp"
-	"rclcpp_action"
-	"rclcpp_components"
-	"interfaces"
-	)
+#target_link_libraries(
+#	simple_control
+#	PUBLIC
+#	rclcpp::rclcpp
+#	rclcpp::rclcpp_action
+#	rclcpp::rclcpp_components
+#	interfaces::interfaces
+#	)
 
 install(TARGETS simple_control
 	DESTINATION lib/${PROJECT_NAME})
