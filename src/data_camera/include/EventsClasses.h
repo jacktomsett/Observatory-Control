@@ -1,3 +1,7 @@
+#ifndef EVENTSCLASSES_H
+#define EVENTSCLASSES_H
+
+
 #include <string>
 #include "interfaces/srv/double_status.hpp"
 #include "interfaces/srv/double_request.hpp"
@@ -175,3 +179,5 @@ public:
 private:
   std::shared_ptr < rclcpp_action::ServerGoalHandle < interfaces::action::Sequence >> goalHandle;
 };
+
+#endif

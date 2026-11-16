@@ -1,3 +1,6 @@
+#ifndef GPHOTOWRAPPER_H
+#define GPHOTOWRAPPER_H
+
 #include "gphoto2/gphoto2.h"
 #include <gphoto2/gphoto2-camera.h>
 #include <gphoto2/gphoto2-context.h>
@@ -45,3 +48,5 @@ class gphotoWrapper
 		int captureImage();
 
 };
+
+#endif

@@ -46,13 +46,12 @@ batteryRequest::~batteryRequest() {}
 
 void batteryRequest::execute()
 {
-  char * batteryValue;
+	std::string batteryValue;
   std::string error = "";
   bool retval = cameranode->get_setting_value("batterylevel", &batteryValue, &error);
   if (retval == true) {
-    std::string battValue = std::string(batteryValue); \
-    battValue.pop_back();   //Remove percent sign
-    response->value = std::stoi(battValue);
+    batteryValue.pop_back();   //Remove percent sign
+    response->value = std::stoi(batteryValue);
     response->description = "";
     response->status = true;
   } else {

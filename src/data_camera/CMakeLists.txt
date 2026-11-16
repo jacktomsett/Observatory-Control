@@ -17,7 +17,7 @@ include_directories(/usr/include/gphoto2)
 include_directories(include)
 
 
-add_executable(camera_node src/camera_node.cpp src/DataCamera.cpp src/EventsClasses.cpp)
+add_executable(camera_node src/camera_node.cpp src/DataCamera.cpp src/EventsClasses.cpp src/gphotoWrapper.cpp)
 target_link_libraries(camera_node PUBLIC -lgphoto2 -lgphoto2_port rclcpp::rclcpp rclcpp_action::rclcpp_action interfaces::interfaces)
 
 target_include_directories(camera_node PUBLIC

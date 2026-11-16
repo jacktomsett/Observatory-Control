@@ -1,3 +1,6 @@
+#ifndef DATACAMERA_H
+#define DATACAMERA_H
+
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "interfaces/msg/event.hpp"
@@ -8,7 +11,7 @@
 #include "interfaces/srv/string_status.hpp"
 #include "interfaces/srv/string_request.hpp"
 #include "interfaces/action/sequence.hpp"
-#include <gphoto2/gphoto2.h>
+#include "gphotoWrapper.h"
 #include <thread>
 #include <mutex>
 
@@ -41,12 +44,13 @@ private:
   std::mutex currentEventLock;
 
         //libgphoto variables and functions
+  gphotoWrapper camera;
   Camera *cameraHandle;
-  GPContext *context;           //Main context which reports to ROS info and error streams
-  GPContext *emptyContext;          //Empty context with no error reporting. Used when no camera is connected and we are poling to detect one
+  //GPContext *context;           //Main context which reports to ROS info and error streams
+  //GPContext *emptyContext;          //Empty context with no error reporting. Used when no camera is connected and we are poling to detect one
 
-  static void contextErrorFunction(GPContext *, const char *, void *);
-  static void contextStatusFunction(GPContext *, const char *, void *);
+  //static void contextErrorFunction(GPContext *, const char *, void *);
+  //static void contextStatusFunction(GPContext *, const char *, void *);
 
   std::string errorstring;       //Holds last error from camera, to send back to service clients //FIXME: Not particularly robust, should be overhauled
 
@@ -129,3 +133,5 @@ private:
     interfaces::action::Sequence >>);
 
 };
+
+#endif
