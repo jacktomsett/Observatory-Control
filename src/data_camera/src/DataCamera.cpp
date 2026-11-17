@@ -4,20 +4,15 @@
 #include "gphoto2-port-result.h"
 
 DataCamera::DataCamera()
-: Node("data_camera")
+: Node("data_camera"),
+	camera(this)
 {
     //Initialise variables
   shutdownRequest = false;
-  isCameraConnected = false;
   currentSequenceId = "";
   currentSequenceSuccesses = 0;
   currentSequenceFails = 0;
 
-    //Initialise libgphoto contexts
-  context = gp_context_new();
-  gp_context_set_error_func(context, contextErrorFunction, this);
-  gp_context_set_status_func(context, contextStatusFunction, this);
-  emptyContext = gp_context_new();
 
     //Initialise publishers
   eventpublisher = this->create_publisher<interfaces::msg::Event>("camera_events", 10);   //TODO: Not currently doing anything with this. At a minimum I would suggets that every service callback reports to this
@@ -98,21 +93,61 @@ DataCamera::~DataCamera()
   cameraThread.join();
 }
 
+bool DataCamera::get_setting_value(std::string param, std::string* value_ptr, std::string* error_string_ptr)
+{
+	//TODO: This seems unelegent. Perhaps there is a way to automatically expose the wrappers api to the node class
+	*error_string_ptr = "ERROR PARSING NOT REIMPLEMENTED YET";
+	int ret = camera.getSettingValue(param,value_ptr);
+	if (ret == 0)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
 
+bool DataCamera::set_setting_value(std::string param, std::string value, std::string* error_string_ptr)
+{
+	*error_string_ptr = "ERROR PARSING NOT REIMPLEMENTED YET";
+	int ret = camera.setSettingValue(param,value);
+	if (ret == 0)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}	
+}
+
+bool DataCamera::capture_image()
+{
+	int ret = camera.captureImage();
+	if (ret == 1)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
 void DataCamera::cameraThreadFunction()
 {
 
   while(shutdownRequest == false) {
-    if(isCameraConnected == false) {
-      connectToCamera();
-      if (isCameraConnected == false) {
+    if(camera.isCameraPresent() == false) {
+      camera.checkConnection();
+      if (camera.isCameraPresent() == false) {
             //If camera is not connected, we need to add a delay here to avoid a hot
             //loop in the situation where no camera is connected
         usleep(200);     //TODO: Decide whether this should be achieved with a ROS timer
       }
     } else if(eventQueue.size() == 0) {
           //Run keep alive command to check camera is still connected
-      checkCameraConnection();
+      camera.checkConnection();
     } else {
           //Create local copy of first event in queue
       queueLock.lock();
@@ -137,7 +172,7 @@ void DataCamera::cameraThreadFunction()
     "Camera thread closing with " << eventQueue.size() << " events remaining in queue");
 }
 
-void DataCamera::connectToCamera()
+/*void DataCamera::connectToCamera()
 {
   gp_camera_new(&cameraHandle);
   int ret = gp_camera_init(cameraHandle, emptyContext);
@@ -167,9 +202,9 @@ void DataCamera::connectToCamera()
     disconnectCamera();
   }
   return;
-}
+}*/
 
-void DataCamera::disconnectCamera()
+/*void DataCamera::disconnectCamera()
 {
   if (isCameraConnected == true) {
     auto eventmessage = interfaces::msg::Event();
@@ -179,9 +214,9 @@ void DataCamera::disconnectCamera()
   }
   isCameraConnected = false;
   gp_camera_unref(cameraHandle);
-}
+}*/
 
-void DataCamera::checkCameraConnection()
+/*void DataCamera::checkCameraConnection()
 {
   //Attempt to fetch camera summary
   CameraText cameraSummary;
@@ -191,7 +226,7 @@ void DataCamera::checkCameraConnection()
   }
   usleep(500000); //TODO: Determine whether this would be better as a ROS timer or not
 
-}
+}*/
 
 void DataCamera::insertEvent(std::shared_ptr<EventRequest> event)
 {
@@ -247,7 +282,7 @@ void DataCamera::getiso_callback(
   response->status = false;
   response->value = 0;
   response->description = "";
-  if(isCameraConnected == true) {
+  if(camera.isCameraPresent() == true) {
     //Create event
     auto eventptr = std::make_shared<getIsoRequest>(1, response, this);
     //Insert event request into queue
@@ -274,7 +309,7 @@ void DataCamera::setiso_callback(
   RCLCPP_INFO_STREAM(this->get_logger(), "Received demand for iso setting: " << request->demand);
   response->status = false;
   response->description = "";
-  if(isCameraConnected == true) {
+  if(camera.isCameraPresent() == true) {
     //Create event
     auto eventptr = std::make_shared<setIsoRequest>(1, request, response, this);
     //Insert event request into queue
@@ -303,7 +338,7 @@ void DataCamera::getqual_callback(
   response->status = false;
   response->value = "";
   response->description = "";
-  if(isCameraConnected == true) {
+  if(camera.isCameraPresent() == true) {
     //Create event
     auto eventptr = std::make_shared<getImgQualityRequest>(1, response, this);
     //Insert event request into queue
@@ -330,7 +365,7 @@ void DataCamera::setqual_callback(
     "Received demand for image quality setting: " << request->demand);
   response->status = false;
   response->description = "";
-  if(isCameraConnected == true) {
+  if(camera.isCameraPresent() == true) {
     //Create event
     auto eventptr = std::make_shared<setImgQualityRequest>(1, request, response, this);
     //Insert event request into queue
@@ -357,7 +392,7 @@ void DataCamera::getfnumber_callback(
   response->status = false;
   response->value = "";
   response->description = "";
-  if(isCameraConnected == true) {
+  if(camera.isCameraPresent() == true) {
     //Create event
     auto eventptr = std::make_shared<getFNumberRequest>(1, response, this);
     //Insert event request into queue
@@ -384,7 +419,7 @@ void DataCamera::setfnumber_callback(
     "Received demand for f-number setting: " << request->demand);
   response->status = false;
   response->description = "";
-  if(isCameraConnected == true) {
+  if(camera.isCameraPresent() == true) {
     //Create event
     auto eventptr = std::make_shared<setFNumberRequest>(1, request, response, this);
     //Insert event request into queue
@@ -411,7 +446,7 @@ void DataCamera::getexposure_callback(
   response->status = false;
   response->value = "";
   response->description = "";
-  if(isCameraConnected == true) {
+  if(camera.isCameraPresent() == true) {
     //Create event
     auto eventptr = std::make_shared<getExposureRequest>(1, response, this);
     //Insert event request into queue
@@ -438,7 +473,7 @@ void DataCamera::setexposure_callback(
     "Received demand for exposure setting: " << request->demand);
   response->status = false;
   response->description = "";
-  if(isCameraConnected == true) {
+  if(camera.isCameraPresent() == true) {
     //Create event
     auto eventptr = std::make_shared<setExposureRequest>(1, request, response, this);
     //Insert event request into queue
@@ -465,7 +500,7 @@ void DataCamera::getfocusmode_callback(
   response->status = false;
   response->value = "";
   response->description = "";
-  if(isCameraConnected == true) {
+  if(camera.isCameraPresent() == true) {
     //Create event
     auto eventptr = std::make_shared<getFocusModeRequest>(1, response, this);
     //Insert event request into queue
@@ -492,7 +527,7 @@ void DataCamera::setfocusmode_callback(
     "Received demand for focus mode setting: " << request->demand);
   response->status = false;
   response->description = "";
-  if(isCameraConnected == true) {
+  if(camera.isCameraPresent() == true) {
     //Create event
     auto eventptr = std::make_shared<setFocusModeRequest>(1, request, response, this);
     //Insert event request into queue

@@ -4,21 +4,26 @@
 #include <gphoto2/gphoto2-port-result.h>
 #include <gphoto2/gphoto2-widget.h>
 #include <iostream>
+#include <rclcpp/logging.hpp>
 #include <string.h>
 #include <vector>
 #include "gphotoWrapper.h"
+#include <rclcpp/rclcpp.hpp>
+
+#include "DataCamera.h"
 
 
-
-
-gphotoWrapper::gphotoWrapper()
+gphotoWrapper::gphotoWrapper(DataCamera* n_ptr)
 {
 	gp_camera_new(&camera);
 	context = gp_context_new();
-	gp_context_set_error_func(context,ctx_error_func,NULL);
-	gp_context_set_status_func(context, ctx_status_func, NULL);
+	gp_context_set_error_func(context,ctx_error_func,n_ptr);
+	gp_context_set_status_func(context, ctx_status_func, n_ptr);
 	topLevelWidget = NULL;
 	cameraPresentFlag = false;
+
+	//TODO: This class member might not be neccessary if all the logger is needed for is the status and error functions
+	node_ptr = n_ptr;
 
 	checkConnection();
 	return;
@@ -296,12 +301,21 @@ int gphotoWrapper::captureImage()
 //=================Private member functions==========================================//
 void gphotoWrapper::ctx_error_func(GPContext *context, const char *str, void *data)
 {
-	std::cerr << "******* Contexterror ******" << std::endl << str << std::endl;
+	// The data pointer contains the ros2 node. It is required to be
+	// passed into the function because the libgphoto2 library requires
+	// the status and error functions to be static
+	DataCamera*  node = static_cast<DataCamera*>(data);
+	RCLCPP_ERROR_STREAM(node->get_logger(),"[GPhoto ERROR] " << str);
 };
 
 void gphotoWrapper::ctx_status_func(GPContext *context, const char *str, void *data)
 {
-	std::cout << "******* ContextStatus ******" << std::endl << str << std::endl;
+	// The data pointer contains the ros2 node. It is required to be
+	// passed into the function because the libgphoto2 library requires
+	// the status and error functions to be static
+	DataCamera*  node = static_cast<DataCamera*>(data);
+	RCLCPP_INFO_STREAM(node->get_logger(),"[GPhoto INFO] " << str);
+
 };
 
 int gphotoWrapper::getTextConfig(CameraWidget *widget, std::string* fetchedValue_ptr)

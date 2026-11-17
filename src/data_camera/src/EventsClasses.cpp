@@ -76,7 +76,7 @@ getIsoRequest::~getIsoRequest() {}
 
 void getIsoRequest::execute()
 {
-  char * isoSettingValue;
+	std::string isoSettingValue;
   std::string error = "";
   bool retval = cameranode->get_setting_value("iso", &isoSettingValue, &error);
   if (retval == true) {
@@ -106,10 +106,8 @@ setIsoRequest::~setIsoRequest() {}
 
 void setIsoRequest::execute()
 {
-  std::string error, demandstring;
-  demandstring = std::to_string(request->demand);
-  const char * dem = (demandstring).c_str();
-  bool retVal = cameranode->set_menu_setting_value("iso", dem, &error);
+  std::string error;
+  bool retVal = cameranode->set_setting_value("iso", std::to_string(request->demand), &error);
 
   if( (retVal == true)) {
     response->status = true;
@@ -136,11 +134,11 @@ getImgQualityRequest::~getImgQualityRequest() {}
 
 void getImgQualityRequest::execute()
 {
-  char * qualitySettingValue;
+	std::string qualitySettingValue;
   std::string error = "";
   bool retval = cameranode->get_setting_value("imagequality", &qualitySettingValue, &error);
   if (retval == true) {
-    response->value = std::string(qualitySettingValue);
+    response->value = qualitySettingValue;
     response->description = "";
     response->status = true;
   } else {
@@ -168,8 +166,7 @@ setImgQualityRequest::~setImgQualityRequest() {}
 void setImgQualityRequest::execute()
 {
   std::string error;
-  const char * dem = (request->demand).c_str();
-  bool retVal = cameranode->set_menu_setting_value("imagequality", dem, &error);
+  bool retVal = cameranode->set_setting_value("imagequality", request->demand, &error);
 
   if( (retVal == true)) {
     response->status = true;
@@ -195,11 +192,11 @@ getFNumberRequest::~getFNumberRequest() {}
 
 void getFNumberRequest::execute()
 {
-  char * fNumberSettingValue;
+	std::string fNumberSettingValue;
   std::string error = "";
   bool retval = cameranode->get_setting_value("f-number", &fNumberSettingValue, &error);
   if (retval == true) {
-    response->value = std::string(fNumberSettingValue);
+    response->value = fNumberSettingValue;
     response->description = "";
     response->status = true;
   } else {
@@ -227,8 +224,7 @@ setFNumberRequest::~setFNumberRequest() {}
 void setFNumberRequest::execute()
 {
   std::string error;
-  const char * dem = (request->demand).c_str();
-  bool retVal = cameranode->set_menu_setting_value("f-number", dem, &error);
+  bool retVal = cameranode->set_setting_value("f-number", request->demand, &error);
 
   if( (retVal == true)) {
     response->status = true;
@@ -254,11 +250,11 @@ getExposureRequest::~getExposureRequest() {}
 
 void getExposureRequest::execute()
 {
-  char * exposureSettingValue;
+  std::string exposureSettingValue;
   std::string error = "";
   bool retval = cameranode->get_setting_value("shutterspeed", &exposureSettingValue, &error);
   if (retval == true) {
-    response->value = std::string(exposureSettingValue);
+    response->value = exposureSettingValue;
     response->description = "";
     response->status = true;
   } else {
@@ -286,8 +282,7 @@ setExposureRequest::~setExposureRequest() {}
 void setExposureRequest::execute()
 {
   std::string error;
-  const char * dem = (request->demand).c_str();
-  bool retVal = cameranode->set_menu_setting_value("shutterspeed", dem, &error);
+  bool retVal = cameranode->set_setting_value("shutterspeed", request->demand, &error);
 
   if( (retVal == true)) {
     response->status = true;
@@ -313,11 +308,11 @@ getFocusModeRequest::~getFocusModeRequest() {}
 
 void getFocusModeRequest::execute()
 {
-  char * focusModeSettingValue;
+	std::string  focusModeSettingValue;
   std::string error = "";
   bool retval = cameranode->get_setting_value("focusmode", &focusModeSettingValue, &error);
   if (retval == true) {
-    response->value = std::string(focusModeSettingValue);
+    response->value = focusModeSettingValue;
     response->description = "";
     response->status = true;
   } else {
@@ -344,6 +339,7 @@ setFocusModeRequest::~setFocusModeRequest() {}
 
 void setFocusModeRequest::execute()
 {
+	/*
   //This one is a little different. Nikon cameras will only let you change focus mode if you are in liveview mode
   std::string error;
   bool liveviewsetting = true;
@@ -361,6 +357,7 @@ void setFocusModeRequest::execute()
     response->status = false;
     response->description = error;
   }
+  */
 
 }
 

@@ -23,9 +23,8 @@ public:
   ~DataCamera();
 
   void insertEvent(std::shared_ptr < EventRequest >);
-  bool get_setting_value(char *, char **, std::string *);
-  bool set_menu_setting_value(char *, const char *, std::string *);
-  bool change_toggle_setting_value(char *, bool, std::string *);
+  bool get_setting_value(std::string,std::string *, std::string *);
+  bool set_setting_value(std::string, std::string, std::string *);
   bool capture_image();
 
   //TODO: Bad practice to have public class fields, should be replaced with getter and setters

@@ -5,9 +5,12 @@
 #include <gphoto2/gphoto2-camera.h>
 #include <gphoto2/gphoto2-context.h>
 #include <gphoto2/gphoto2-widget.h>
-#include <iostream>
+#include <rclcpp/logger.hpp>
 #include <string>
+#include <rclcpp/rclcpp.hpp>
 
+//forward declaration
+class DataCamera;
 
 class gphotoWrapper
 {
@@ -20,6 +23,8 @@ class gphotoWrapper
 	int disconnectCamera;
 	static void ctx_error_func(GPContext *context, const char *str, void *data);
 	static void ctx_status_func(GPContext *context, const char *str, void *data);
+	DataCamera* node_ptr;
+	
 
 	//Sub functions to get and set config values. Will be called by the public functions as appropriate
 	int getTextConfig(CameraWidget *widget, std::string* str_ptr);
@@ -39,7 +44,7 @@ class gphotoWrapper
 	int setDateConfig(CameraWidget *widget, std::string);
 
 	public:
-		gphotoWrapper();
+		gphotoWrapper(DataCamera*);
 		~gphotoWrapper();
 		bool isCameraPresent();
 		int checkConnection();
